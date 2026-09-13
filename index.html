@@ -44,6 +44,11 @@ input{width:100%;padding:13px;border:1px solid #ccd6e0;border-radius:12px;font-s
 .small{font-size:12px;color:#667085;line-height:1.45} textarea{width:100%;min-height:88px;resize:vertical;font-family:inherit;box-sizing:border-box}
 .notice{background:#fff8e7;border:1px solid #f0dc9a;border-radius:12px;padding:10px;font-size:11px;color:#765b11}
 .adminrow{border:1px solid #e5eaf0;border-radius:12px;padding:10px;margin:8px 0;background:#fbfcfd}.adminrowtop{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.adminname{font-weight:800;color:var(--navy);font-size:13px}.admindetail{font-size:11px;color:#667085;margin-top:3px}.delbtn{border:0;background:#fff0f0;color:#9b1c1c;border-radius:9px;padding:8px 10px;font-size:11px;font-weight:800}
+.seatBlockGrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:10px}
+.seatBlockBtn{border:1px solid #b9c6d2;background:#e8f5eb;color:#145c2d;border-radius:9px;padding:9px 3px;font-size:11px;font-weight:900;cursor:pointer}
+.seatBlockBtn.blocked{background:#fff0f0;border-color:#e0a1a1;color:#9b1c1c;text-decoration:line-through}
+.seatBlockBtn.occupied{background:#e5e7eb;border-color:#b7bec6;color:#667085;cursor:not-allowed}
+.seatBlockLegend{font-size:11px;color:#667085;line-height:1.4;margin-top:8px}
 .adminempty{text-align:center;color:#667085;font-size:12px;padding:16px 4px}
 .tablebadge{display:inline-flex;align-items:center;gap:4px;border:0;background:#eef5fb;color:#17324d;border-radius:8px;padding:4px 7px;font-size:11px;font-weight:800;cursor:pointer;margin-top:5px}
 .tablebadge:hover{background:#e1edf8}
@@ -247,6 +252,18 @@ input{width:100%;padding:13px;border:1px solid #ccd6e0;border-radius:12px;font-s
       </div>
 
       <div class="card">
+        <b style="color:#17324d">🪑 Bloquer une chaise</b>
+        <p class="small">Bloquez une chaise pour l'organisation. Elle ne pourra plus être réservée par un client.</p>
+        <label>Table</label>
+        <select id="adminBlockTable" onchange="loadSeatBlocksAdmin()"></select>
+        <label>Motif (facultatif)</label>
+        <input id="adminBlockReason" type="text" maxlength="120" placeholder="Organisation, VIP, problème technique…">
+        <div id="adminBlockMessage" class="authmsg"></div>
+        <div id="adminSeatBlockGrid" class="seatBlockGrid"></div>
+        <div class="seatBlockLegend">🟢 Disponible · 🔴 Bloquée · ⚪ Déjà occupée</div>
+      </div>
+
+      <div class="card">
         <b style="color:#17324d">Sécurité du compte</b>
         <p class="small">Vous pouvez changer votre mot de passe administrateur ici.</p>
         <label>Nouveau mot de passe</label>
@@ -290,6 +307,7 @@ let selectedSeats=[];
 let holdToken=null;
 let holdExpiresAt=null;
 let adminReservationsCache=[];
+let adminSeatBlocks=[];
 
 function endpoint(query='') {
   return SUPABASE_URL + '/rest/v1/' + encodeURIComponent(TABLE) + (query ? '?' + query : '');
@@ -315,19 +333,29 @@ function party() { return Math.max(1,parseInt(document.getElementById("party").v
 async function loadReservations() {
   try {
     loading=true; status('Actualisation des places...');
-    const [occRes, seatRes] = await Promise.all([
+    const [occRes, seatRes, blockRes] = await Promise.all([
       fetch(SUPABASE_URL + '/rest/v1/rpc/get_bingo_occupancy',{
         method:'POST', headers:headers(), body:'{}'
       }),
       fetch(SUPABASE_URL + '/rest/v1/rpc/get_bingo_unavailable_seats',{
         method:'POST', headers:headers(), body:'{}'
+      }),
+      fetch(SUPABASE_URL + '/rest/v1/rpc/get_bingo_seat_blocks',{
+        method:'POST', headers:headers(), body:'{}'
       })
     ]);
     if(!occRes.ok) throw new Error('Lecture des disponibilités impossible ('+occRes.status+')');
     if(!seatRes.ok) throw new Error('Lecture des chaises impossible ('+seatRes.status+')');
+    if(!blockRes.ok) throw new Error('Lecture des chaises bloquées impossible ('+blockRes.status+')');
 
     const occupancy=await occRes.json();
-    unavailableSeats=await seatRes.json();
+    const unavailable=await seatRes.json();
+    const blocked=await blockRes.json();
+
+    unavailableSeats=[
+      ...(unavailable||[]),
+      ...(blocked||[]).map(x=>({numero_table:x.numero_table,siege:x.siege,statut:'bloquee'}))
+    ];
 
     rows=(occupancy||[]).map(r=>({
       numero_table:Number(r.numero_table),
@@ -432,7 +460,7 @@ function renderSeatPicker(){
     const blocked=!mine && !!st;
     const cls='seat'+(mine?' selectedSeat':'')+(blocked?(st==='temporaire'?' temporary':' unavailable'):'');
     const disabled=blocked?' disabled':'';
-    const suffix=st==='temporaire' && !mine?' ⏳':(st==='reservee' && !mine?' ✕':'');
+    const suffix=st==='temporaire' && !mine?' ⏳':(st==='bloquee' && !mine?' 🔒':(st==='reservee' && !mine?' ✕':''));
     return `<button class="${cls}"${disabled} onclick="toggleSeat('${seat}')">${seat}${suffix}</button>`;
   };
 
@@ -768,6 +796,8 @@ async function adminLogin(){
     msg.textContent='';
     showAdminState();
     await loadAdminReservations();
+    initAdminBlockTableOptions();
+    await loadSeatBlocksAdmin();
     await loadReservations();
   }catch(e){
     setAdminSession('','');
@@ -779,7 +809,7 @@ async function adminLogin(){
 async function openAdmin(){
   go('admin',true);
   showAdminState();
-  if(adminUnlocked) await loadAdminReservations();
+  if(adminUnlocked){ await loadAdminReservations(); initAdminBlockTableOptions(); await loadSeatBlocksAdmin(); }
 }
 
 function adminLogout(){
@@ -805,6 +835,99 @@ async function changeAdminPassword(){
     document.getElementById('adminNewPassword2').value='';
     alert('Mot de passe administrateur modifié.');
   }catch(e){ alert(e.message); }
+}
+
+function initAdminBlockTableOptions(){
+  const sel=document.getElementById('adminBlockTable');
+  if(!sel || sel.options.length) return;
+  Object.keys(caps).map(Number).sort((a,b)=>a-b).forEach(id=>{
+    const opt=document.createElement('option');
+    opt.value=String(id);
+    opt.textContent='Table '+id+' ('+caps[id]+' places)';
+    sel.appendChild(opt);
+  });
+}
+
+async function loadSeatBlocksAdmin(){
+  if(!adminUnlocked) return;
+  initAdminBlockTableOptions();
+  const table=Number(document.getElementById('adminBlockTable')?.value||0);
+  const grid=document.getElementById('adminSeatBlockGrid');
+  const msg=document.getElementById('adminBlockMessage');
+  if(!grid || !table) return;
+  if(msg) msg.textContent='Chargement…';
+
+  try{
+    const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/get_bingo_seat_blocks',{
+      method:'POST',headers:authHeaders(),body:'{}'
+    });
+    if(!res.ok) throw new Error('Lecture des blocages impossible ('+res.status+')');
+    adminSeatBlocks=await res.json();
+
+    // Rafraîchit aussi l'occupation pour griser les chaises déjà prises.
+    await loadReservations();
+
+    const blockedSet=new Set((adminSeatBlocks||[])
+      .filter(x=>Number(x.numero_table)===table)
+      .map(x=>String(x.siege)));
+
+    const occupiedSet=new Set((unavailableSeats||[])
+      .filter(x=>Number(x.numero_table)===table && String(x.statut||'')!=='bloquee')
+      .map(x=>String(x.siege)));
+
+    grid.innerHTML='';
+    for(let i=1;i<=Number(caps[table]||0);i++){
+      const seat=seatName(i);
+      const b=document.createElement('button');
+      b.type='button';
+      b.className='seatBlockBtn';
+      if(blockedSet.has(seat)) b.classList.add('blocked');
+      else if(occupiedSet.has(seat)) b.classList.add('occupied');
+
+      b.textContent=seat+(blockedSet.has(seat)?' 🔒':(occupiedSet.has(seat)?' • occupée':''));
+      b.disabled=occupiedSet.has(seat);
+      if(!b.disabled){
+        b.onclick=()=>toggleAdminSeatBlock(table,seat,blockedSet.has(seat));
+      }
+      grid.appendChild(b);
+    }
+
+    if(msg) msg.textContent='';
+  }catch(e){
+    if(msg) msg.textContent=e.message;
+  }
+}
+
+async function toggleAdminSeatBlock(table,seat,isBlocked){
+  if(!adminUnlocked) return;
+  const msg=document.getElementById('adminBlockMessage');
+  const reason=(document.getElementById('adminBlockReason')?.value||'').trim();
+
+  try{
+    if(msg) msg.textContent=isBlocked?'Déblocage…':'Blocage…';
+
+    const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/set_bingo_seat_block',{
+      method:'POST',
+      headers:authHeaders(),
+      body:JSON.stringify({
+        p_numero_table:table,
+        p_siege:seat,
+        p_bloquee:!isBlocked,
+        p_motif:reason||null
+      })
+    });
+
+    const data=await res.json().catch(()=>null);
+    if(!res.ok) throw new Error((data&&data.message)||'Modification impossible ('+res.status+')');
+
+    const result=Array.isArray(data)?data[0]:data;
+    if(!result || !result.ok) throw new Error((result&&result.message)||'Modification refusée');
+
+    if(msg) msg.textContent=result.message||'Enregistré.';
+    await loadSeatBlocksAdmin();
+  }catch(e){
+    if(msg) msg.textContent=e.message;
+  }
 }
 
 function normalizeAdminSearch(value){
