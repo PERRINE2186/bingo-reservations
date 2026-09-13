@@ -45,6 +45,16 @@ input{width:100%;padding:13px;border:1px solid #ccd6e0;border-radius:12px;font-s
 .notice{background:#fff8e7;border:1px solid #f0dc9a;border-radius:12px;padding:10px;font-size:11px;color:#765b11}
 .adminrow{border:1px solid #e5eaf0;border-radius:12px;padding:10px;margin:8px 0;background:#fbfcfd}.adminrowtop{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.adminname{font-weight:800;color:var(--navy);font-size:13px}.admindetail{font-size:11px;color:#667085;margin-top:3px}.delbtn{border:0;background:#fff0f0;color:#9b1c1c;border-radius:9px;padding:8px 10px;font-size:11px;font-weight:800}
 .adminempty{text-align:center;color:#667085;font-size:12px;padding:16px 4px}
+.tablebadge{display:inline-flex;align-items:center;gap:4px;border:0;background:#eef5fb;color:#17324d;border-radius:8px;padding:4px 7px;font-size:11px;font-weight:800;cursor:pointer;margin-top:5px}
+.tablebadge:hover{background:#e1edf8}
+.tablemodal{position:fixed;inset:0;background:rgba(16,36,54,.45);z-index:100;display:none;align-items:flex-end;justify-content:center}
+.tablemodal.show{display:flex}
+.tablepanel{width:min(520px,100%);max-height:82vh;overflow:auto;background:white;border-radius:18px 18px 0 0;padding:16px;box-shadow:0 -10px 35px rgba(0,0,0,.18)}
+.tablepanelhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.tablepanel h3{margin:0;color:var(--navy);font-size:18px}
+.closemodal{border:0;background:#f2f4f7;border-radius:9px;padding:8px 11px;font-weight:800;color:#344054}
+.tableperson{border:1px solid #e5eaf0;border-radius:11px;padding:10px;margin:7px 0;background:#fbfcfd}
+.tableperson b{color:var(--navy)}
 .authbox{border:1px solid #e5eaf0;border-radius:14px;padding:14px;background:#fbfcfd;margin-top:10px}
 .authbox h3{margin:0 0 8px;color:#17324d;font-size:17px}
 .authmsg{font-size:12px;color:#667085;margin:8px 0}
@@ -248,6 +258,16 @@ input{width:100%;padding:13px;border:1px solid #ccd6e0;border-radius:12px;font-s
       </div>
     </div>
   </section>
+
+  <div id="tableModal" class="tablemodal" onclick="if(event.target===this) closeTableModal()">
+    <div class="tablepanel">
+      <div class="tablepanelhead">
+        <h3 id="tableModalTitle">Table</h3>
+        <button class="closemodal" onclick="closeTableModal()">FERMER</button>
+      </div>
+      <div id="tableModalBody"></div>
+    </div>
+  </div>
 
   <nav class="bottomnav">
     <button class="navbtn active" data-screen="home" onclick="go('home')"><span class="navicon">🏠</span>Accueil</button>
@@ -822,13 +842,19 @@ function renderAdminReservations(list){
 
     const seats=Array.isArray(r.sieges)&&r.sieges.length?' • '+r.sieges.join(', '):'';
     const dt=document.createElement('div'); dt.className='admindetail';
-    dt.textContent='Table '+r.numero_table+' • '+r.nombre_personnes+' personne'+(Number(r.nombre_personnes)>1?'s':'')+seats+(r.telephone?' • '+r.telephone:'');
+    dt.textContent=(r.nombre_personnes||0)+' personne'+(Number(r.nombre_personnes)>1?'s':'')+seats+(r.telephone?' • '+r.telephone:'');
+
+    const tb=document.createElement('button');
+    tb.type='button';
+    tb.className='tablebadge';
+    tb.textContent='🪑 Table '+r.numero_table;
+    tb.onclick=()=>openTableModal(r.numero_table);
 
     const code=document.createElement('div'); code.className='admindetail';
     code.style.marginTop='4px'; code.style.fontWeight='700';
     code.textContent=r.code_reservation?'Code : '+r.code_reservation:'';
 
-    info.append(nm,dt);
+    info.append(nm,tb,dt);
     if(r.code_reservation) info.append(code);
 
     if(r.commentaire){
@@ -864,6 +890,52 @@ function filterAdminReservations(){
   });
 
   renderAdminReservations(filtered);
+}
+
+function openTableModal(tableNumber){
+  const modal=document.getElementById('tableModal');
+  const title=document.getElementById('tableModalTitle');
+  const body=document.getElementById('tableModalBody');
+  if(!modal||!title||!body) return;
+
+  const key=String(tableNumber);
+  const list=adminReservationsCache.filter(r=>String(r.numero_table)===key);
+  title.textContent='Table '+key+' — '+list.reduce((n,r)=>n+Number(r.nombre_personnes||0),0)+' personne'+(list.reduce((n,r)=>n+Number(r.nombre_personnes||0),0)>1?'s':'');
+  body.innerHTML='';
+
+  if(!list.length){
+    body.innerHTML='<div class="adminempty">Aucune réservation active sur cette table.</div>';
+  }else{
+    list.forEach(r=>{
+      const d=document.createElement('div'); d.className='tableperson';
+      const name=document.createElement('div'); name.innerHTML='<b></b>';
+      name.querySelector('b').textContent=((r.prenom||'')+' '+(r.nom||'Sans nom')).trim();
+      const detail=document.createElement('div'); detail.className='admindetail';
+      detail.textContent=Number(r.nombre_personnes||0)+' personne'+(Number(r.nombre_personnes||0)>1?'s':'')+
+        (Array.isArray(r.sieges)&&r.sieges.length?' • Chaises : '+r.sieges.join(', '):'');
+      d.append(name,detail);
+
+      if(r.telephone){
+        const tel=document.createElement('div'); tel.className='admindetail';
+        tel.textContent='📞 '+r.telephone; d.append(tel);
+      }
+      if(r.code_reservation){
+        const code=document.createElement('div'); code.className='admindetail';
+        code.textContent='🔑 Code : '+r.code_reservation; d.append(code);
+      }
+      if(r.commentaire){
+        const cm=document.createElement('div'); cm.className='admindetail';
+        cm.textContent='📝 '+r.commentaire; d.append(cm);
+      }
+      body.append(d);
+    });
+  }
+  modal.classList.add('show');
+}
+
+function closeTableModal(){
+  const modal=document.getElementById('tableModal');
+  if(modal) modal.classList.remove('show');
 }
 
 async function loadAdminReservations(){
@@ -1048,5 +1120,6 @@ async function saveBingoSettings(){
   }catch(e){msg.textContent='Erreur : '+e.message;}
 }
 
+document.addEventListener('keydown',e=>{if(e.key==='Escape') closeTableModal();});
 </script>
 </body></html>
