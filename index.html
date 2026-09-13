@@ -226,6 +226,11 @@ input{width:100%;padding:13px;border:1px solid #ccd6e0;border-radius:12px;font-s
       <div class="card">
         <b style="color:#17324d">Réservations</b>
         <p class="small">Espace réservé à l'organisation.</p>
+        <label>🔎 Rechercher une réservation</label>
+        <input id="adminSearch" type="search" autocomplete="off"
+               placeholder="Nom, prénom, téléphone ou code"
+               oninput="filterAdminReservations()">
+        <div id="adminSearchCount" class="small" style="margin-top:-5px;margin-bottom:8px"></div>
         <div id="adminList" style="margin-top:10px"></div>
         <button class="btn" style="margin-top:10px" onclick="exportReservationsCSV()">📥 EXPORTER LES RÉSERVATIONS (CSV)</button>
         <button class="btn secondary" style="margin-top:8px" onclick="loadAdminReservations()">ACTUALISER</button>
@@ -264,6 +269,7 @@ let unavailableSeats=[];
 let selectedSeats=[];
 let holdToken=null;
 let holdExpiresAt=null;
+let adminReservationsCache=[];
 
 function endpoint(query='') {
   return SUPABASE_URL + '/rest/v1/' + encodeURIComponent(TABLE) + (query ? '?' + query : '');
@@ -781,6 +787,85 @@ async function changeAdminPassword(){
   }catch(e){ alert(e.message); }
 }
 
+function normalizeAdminSearch(value){
+  return String(value||'')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase()
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function renderAdminReservations(list){
+  const box=document.getElementById('adminList');
+  const count=document.getElementById('adminSearchCount');
+  if(!box) return;
+
+  if(count){
+    const total=adminReservationsCache.length;
+    count.textContent=list.length===total
+      ? total+' réservation'+(total>1?'s':'')+' active'+(total>1?'s':'')
+      : list.length+' résultat'+(list.length>1?'s':'')+' sur '+total;
+  }
+
+  if(!list.length){
+    box.innerHTML='<div class="adminempty">Aucune réservation trouvée.</div>';
+    return;
+  }
+
+  box.innerHTML='';
+  list.forEach(r=>{
+    const d=document.createElement('div'); d.className='adminrow';
+    const top=document.createElement('div'); top.className='adminrowtop';
+    const info=document.createElement('div');
+    const nm=document.createElement('div'); nm.className='adminname';
+    nm.textContent=((r.prenom||'')+' '+(r.nom||'Sans nom')).trim();
+
+    const seats=Array.isArray(r.sieges)&&r.sieges.length?' • '+r.sieges.join(', '):'';
+    const dt=document.createElement('div'); dt.className='admindetail';
+    dt.textContent='Table '+r.numero_table+' • '+r.nombre_personnes+' personne'+(Number(r.nombre_personnes)>1?'s':'')+seats+(r.telephone?' • '+r.telephone:'');
+
+    const code=document.createElement('div'); code.className='admindetail';
+    code.style.marginTop='4px'; code.style.fontWeight='700';
+    code.textContent=r.code_reservation?'Code : '+r.code_reservation:'';
+
+    info.append(nm,dt);
+    if(r.code_reservation) info.append(code);
+
+    if(r.commentaire){
+      const cm=document.createElement('div'); cm.className='admindetail';
+      cm.style.marginTop='6px'; cm.style.fontWeight='700'; cm.style.color='#8a5a00';
+      cm.textContent='📝 '+r.commentaire;
+      info.append(cm);
+    }
+
+    const b=document.createElement('button'); b.className='delbtn'; b.textContent='ANNULER';
+    b.onclick=()=>cancelReservation(r.id,r.nom,r.numero_table);
+    top.append(info,b); d.append(top); box.append(d);
+  });
+}
+
+function filterAdminReservations(){
+  const input=document.getElementById('adminSearch');
+  const q=normalizeAdminSearch(input ? input.value : '');
+  if(!q){
+    renderAdminReservations(adminReservationsCache);
+    return;
+  }
+
+  const filtered=adminReservationsCache.filter(r=>{
+    const haystack=normalizeAdminSearch([
+      r.nom,
+      r.prenom,
+      r.telephone,
+      r.code_reservation,
+      r.numero_table
+    ].join(' '));
+    return haystack.includes(q);
+  });
+
+  renderAdminReservations(filtered);
+}
+
 async function loadAdminReservations(){
   loadBingoSettings();
   if(!adminUnlocked) return;
@@ -794,25 +879,18 @@ async function loadAdminReservations(){
     }
     if(!res.ok) throw new Error('Lecture admin impossible ('+res.status+')');
     const data=await res.json();
-    const active=data.filter(r=>String(r.statut||'confirmee').toLowerCase()!=='annulee');
-    if(!active.length){ box.innerHTML='<div class="adminempty">Aucune réservation active.</div>'; return; }
-    box.innerHTML='';
-    active.forEach(r=>{
-      const d=document.createElement('div'); d.className='adminrow';
-      const top=document.createElement('div'); top.className='adminrowtop';
-      const info=document.createElement('div');
-      const nm=document.createElement('div'); nm.className='adminname'; nm.textContent=((r.prenom||'')+' '+(r.nom||'Sans nom')).trim();
-      const seats=Array.isArray(r.sieges)&&r.sieges.length?' • '+r.sieges.join(', '):'';
-      const dt=document.createElement('div'); dt.className='admindetail'; dt.textContent='Table '+r.numero_table+' • '+r.nombre_personnes+' personne'+(Number(r.nombre_personnes)>1?'s':'')+seats+(r.telephone?' • '+r.telephone:'');
-      info.append(nm,dt);
-      if(r.commentaire){
-        const cm=document.createElement('div'); cm.className='admindetail'; cm.style.marginTop='6px'; cm.style.fontWeight='700'; cm.style.color='#8a5a00'; cm.textContent='📝 '+r.commentaire;
-        info.append(cm);
-      }
-      const b=document.createElement('button'); b.className='delbtn'; b.textContent='ANNULER'; b.onclick=()=>cancelReservation(r.id,r.nom,r.numero_table);
-      top.append(info,b); d.append(top); box.append(d);
-    });
-  }catch(e){ box.innerHTML='<div class="adminempty">'+e.message+'</div>'; }
+    adminReservationsCache=data.filter(r=>String(r.statut||'confirmee').toLowerCase()!=='annulee');
+
+    const search=document.getElementById('adminSearch');
+    if(search) search.value='';
+
+    renderAdminReservations(adminReservationsCache);
+  }catch(e){
+    adminReservationsCache=[];
+    const count=document.getElementById('adminSearchCount');
+    if(count) count.textContent='';
+    box.innerHTML='<div class="adminempty">'+e.message+'</div>';
+  }
 }
 
 function csvCell(v){
