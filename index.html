@@ -117,6 +117,12 @@ input{width:100%;padding:13px;border:1px solid #ccd6e0;border-radius:12px;font-s
 .cloudBadge{display:inline-block;background:#ecfdf3;border:1px solid #a6e0b8;color:#166534;border-radius:999px;padding:4px 8px;font-size:10px;font-weight:800;margin-left:5px}
 .cloudItem{border:1px solid #dbe5ee;border-radius:12px;padding:10px;margin-top:8px;background:#fbfcfd}.cloudItem b{color:var(--navy)}.cloudMeta{font-size:11px;color:#667085;margin-top:3px}.cloudActions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.cloudActions button{border:0;border-radius:9px;padding:8px 10px;font-size:10px;font-weight:800;cursor:pointer}.cloudPrimary{background:var(--navy);color:#fff}.cloudSecondary{background:#e9eef4;color:var(--navy)}
 
+
+.jourjHero{background:linear-gradient(135deg,#17324d,#244d70);color:white;border-radius:16px;padding:16px;margin-bottom:12px}
+.jourjHero b{font-size:20px}.jourjCounters{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0 14px}.jourjCounter{background:#f3f6f9;border-radius:12px;padding:10px;text-align:center}.jourjCounter b{display:block;font-size:22px;color:#17324d}.jourjCounter span{font-size:11px;color:#667085;font-weight:700}.jourjStatus{display:inline-block;border-radius:99px;padding:5px 10px;font-size:12px;font-weight:900;margin:4px 0 6px}.jourjStatus.wait{background:#fff4d6;color:#8a5a00}.jourjStatus.partial{background:#e8f1fb;color:#174a73}.jourjStatus.arrived{background:#e4f3e8;color:#176b35}.jourjCheckBtn{width:100%;margin-top:12px;border:0;border-radius:12px;padding:12px;font-weight:900;cursor:pointer;background:#17324d;color:white}.jourjCheckBtn.undo{background:#eef2f6;color:#17324d}.jourjArrivalCount{font-size:18px;font-weight:900;margin-top:10px}.jourjArrivalBtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.jourjArrivalBtns button{border:0;border-radius:12px;padding:12px;font-weight:900;cursor:pointer}.jourjMinus{background:#eef2f6;color:#17324d}.jourjPlus{background:#17324d;color:white}.jourjResult.isArrived{border-color:#4f9b68;background:#f6fbf7}.jourjResult{border:2px solid #17324d;border-radius:16px;padding:16px;margin-top:12px;background:#fff;color:#17324d}.jourjTable{font-size:32px;font-weight:900;color:#17324d;line-height:1.05;margin-top:4px}.jourjSeats{font-size:20px;font-weight:900;color:#17324d;margin-top:10px}.jourjName{font-size:18px;font-weight:900;color:#17324d;margin-bottom:8px;text-transform:uppercase}.jourjPeople{font-size:14px;font-weight:800;color:#334155;margin-top:8px}.jourjPhone{font-size:12px;color:#667085;margin-top:6px}.jourjEmpty{text-align:center;padding:18px;color:#667085}
+.jourjListingFilters{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:10px 0}.jourjFilterBtn{border:1px solid #d6dee7;background:#f6f8fa;color:#17324d;border-radius:10px;padding:9px 5px;font-size:11px;font-weight:900;cursor:pointer}.jourjFilterBtn.active{background:#17324d;color:#fff;border-color:#17324d}.jourjListRow{border:1px solid #dbe3eb;border-radius:12px;padding:12px;margin-top:8px;background:#fff}.jourjListTop{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.jourjListName{font-weight:900;color:#17324d;text-transform:uppercase}.jourjListPlace{font-size:13px;font-weight:800;color:#334155;margin-top:4px}.jourjListProgress{font-weight:900;white-space:nowrap}.jourjListProgress.wait{color:#8a5a00}.jourjListProgress.partial{color:#174a73}.jourjListProgress.complete{color:#176b35}.jourjListSummary{font-size:12px;color:#667085;font-weight:700;margin-top:8px}@media(max-width:560px){.jourjListingFilters{grid-template-columns:repeat(2,1fr)}}
+
+.adminQuickGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}.adminQuickGrid .btn{margin:0}.fillbar{height:10px;background:#edf0f3;border-radius:99px;overflow:hidden;margin-top:8px}.fillbar>div{height:100%;background:#17324d;width:0%}
 </style>
 </head>
 <body>
@@ -248,11 +254,45 @@ input{width:100%;padding:13px;border:1px solid #ccd6e0;border-radius:12px;font-s
 
     <div id="adminContent" style="display:none">
       <div class="card">
-        <div class="statgrid">
+        <b style="color:#17324d">📊 Tableau de bord</b>
+        <div class="statgrid" style="margin-top:10px">
           <div class="stat"><b id="nbRes">0</b><span>réservations</span></div>
           <div class="stat"><b id="nbPers">0</b><span>personnes</span></div>
           <div class="stat"><b id="nbFree">0</b><span>places libres</span></div>
         </div>
+        <div class="statgrid" style="margin-top:8px">
+          <div class="stat"><b id="nbBlocked">0</b><span>chaises bloquées</span></div>
+          <div class="stat"><b id="fillRate">0%</b><span>remplissage</span></div>
+          <div class="stat"><b id="totalCapacity">0</b><span>capacité</span></div>
+        </div>
+        <div class="fillbar"><div id="fillBarInner"></div></div>
+      </div>
+
+      <div class="card" id="jourJCard">
+        <div class="jourjHero"><b>⚡ Mode Jour J</b><div style="font-size:12px;margin-top:4px;opacity:.9">Retrouvez immédiatement un client, sa table et ses chaises.</div></div>
+        <label>Recherche rapide</label>
+        <input id="jourJSearch" type="search" autocomplete="off" placeholder="Nom, prénom, téléphone, code ou table" oninput="renderJourJ()">
+        <div class="jourjCounters"><div class="jourjCounter"><b id="jourJExpected">0</b><span>ATTENDUES</span></div><div class="jourjCounter"><b id="jourJArrived">0</b><span>ARRIVÉES</span></div><div class="jourjCounter"><b id="jourJRemaining">0</b><span>RESTANTES</span></div></div>
+        <div id="jourJActionStatus" style="display:none;margin:10px 0;padding:10px 12px;border-radius:10px;font-weight:800"></div>
+        <div id="jourJResults" class="jourjEmpty">Saisissez un nom, un téléphone ou un code de réservation.</div>
+      </div>
+
+      <div class="card" id="jourJListingCard">
+        <b style="color:#17324d">📋 Listing Jour J</b>
+        <p class="small">Vue d’ensemble des groupes selon leur état d’arrivée.</p>
+        <input id="jourJListingSearch" type="search" autocomplete="off" placeholder="Nom, téléphone ou numéro de table" oninput="renderJourJListing()">
+        <div class="jourjListingFilters">
+          <button type="button" class="jourjFilterBtn active" data-filter="all" onclick="setJourJListingFilter('all',this)">TOUS</button>
+          <button type="button" class="jourjFilterBtn" data-filter="wait" onclick="setJourJListingFilter('wait',this)">À VENIR</button>
+          <button type="button" class="jourjFilterBtn" data-filter="partial" onclick="setJourJListingFilter('partial',this)">PARTIELS</button>
+          <button type="button" class="jourjFilterBtn" data-filter="complete" onclick="setJourJListingFilter('complete',this)">COMPLETS</button>
+        </div>
+        <div id="jourJListingSummary" class="jourjListSummary"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
+          <button type="button" class="btn" onclick="printJourJListing()">🖨️ IMPRIMER LE LISTING</button>
+          <button type="button" class="btn" onclick="exportJourJListingCSV()">📥 EXPORTER LE LISTING</button>
+        </div>
+        <div id="jourJListingResults" class="jourjEmpty">Chargement du listing…</div>
       </div>
 
       <div class="card">
@@ -938,7 +978,7 @@ async function adminLogin(){
 async function openAdmin(){
   go('admin',true);
   showAdminState();
-  if(adminUnlocked){ await loadAdminReservations(); initAdminBlockTableOptions(); await loadSeatBlocksAdmin(); restorePlanDraft(); renderPlanLibrary(); restoreEventDraft(); }
+  if(adminUnlocked){ await loadAdminReservations(); renderJourJListing(); initAdminBlockTableOptions(); await loadSeatBlocksAdmin(); restorePlanDraft(); renderPlanLibrary(); restoreEventDraft(); }
 }
 
 function adminLogout(){
@@ -1022,6 +1062,7 @@ async function loadSeatBlocksAdmin(){
     }
 
     if(msg) msg.textContent='';
+    updateEnhancedDashboard();
   }catch(e){
     if(msg) msg.textContent=e.message;
   }
@@ -1123,6 +1164,200 @@ function renderAdminReservations(list){
   });
 }
 
+function updateEnhancedDashboard(){
+  const capacity=Object.values(caps).reduce((a,b)=>a+Number(b||0),0);
+  const persons=adminReservationsCache.reduce((a,r)=>a+Number(r.nombre_personnes||0),0);
+  const blocked=(adminSeatBlocks||[]).length;
+  const free=Math.max(0,capacity-persons-blocked);
+  const rate=capacity?Math.round((persons/capacity)*100):0;
+  const set=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
+  set('nbBlocked',blocked); set('fillRate',rate+'%'); set('totalCapacity',capacity); set('nbFree',free);
+  const bar=document.getElementById('fillBarInner'); if(bar)bar.style.width=Math.min(100,rate)+'%';
+}
+function updateJourJCounters(){
+  const expected=adminReservationsCache.reduce((a,r)=>a+Number(r.nombre_personnes||0),0);
+  const arrived=adminReservationsCache.reduce((a,r)=>{
+    const max=Math.max(0,Number(r.nombre_personnes||0));
+    const n=Math.max(0,Math.min(max,Number(r.nombre_arrives||0)));
+    return a+n;
+  },0);
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('jourJExpected',expected); set('jourJArrived',arrived); set('jourJRemaining',Math.max(0,expected-arrived));
+}
+async function setJourJArrivals(id, nombreArrives){
+  const statusBox=document.getElementById('jourJActionStatus');
+  const show=(msg,ok=false)=>{if(statusBox){statusBox.textContent=msg;statusBox.style.display='block';statusBox.style.background=ok?'#e4f3e8':'#fff0f0';statusBox.style.color=ok?'#176b35':'#a61b1b';}};
+  if(!adminUnlocked || !adminAccessToken){show('Session Admin absente. Reconnectez-vous.');return;}
+  const r=adminReservationsCache.find(x=>Number(x.id)===Number(id));
+  const max=Math.max(0,Number(r?.nombre_personnes||0));
+  const target=Math.max(0,Math.min(max,Number(nombreArrives||0)));
+  show('Enregistrement en cours…',true);
+  try{
+    const userRes=await fetch(SUPABASE_URL+'/auth/v1/user',{headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+adminAccessToken}});
+    if(!userRes.ok){setAdminSession('','');showAdminState();throw new Error('Session administrateur expirée. Reconnectez-vous.');}
+    const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/admin_set_bingo_arrivals',{
+      method:'POST',
+      headers:authHeaders({'Accept':'application/json'}),
+      body:JSON.stringify({p_reservation_id:Number(id),p_nombre_arrives:target})
+    });
+    const raw=await res.text();
+    let data=null; try{data=raw?JSON.parse(raw):null;}catch(_){data=raw;}
+    if(res.status===401||res.status===403){setAdminSession('','');showAdminState();throw new Error('Session administrateur expirée. Reconnectez-vous.');}
+    if(!res.ok)throw new Error((data&&data.message)||('Mise à jour impossible ('+res.status+')'));
+    await loadAdminReservations();
+    show(target===max && max>0?'✓ Groupe complet':('✓ '+target+' / '+max+' personne'+(max>1?'s':'')+' arrivée'+(target>1?'s':'')),true);
+    renderJourJ();
+    renderJourJListing();
+  }catch(e){show(e.message||'Mise à jour impossible.');window.alert(e.message||'Mise à jour impossible.');}
+}
+function renderJourJ(){
+  const input=document.getElementById('jourJSearch'), box=document.getElementById('jourJResults');
+  updateJourJCounters();
+  if(!box)return;
+  const q=normalizeAdminSearch(input?input.value:'');
+  if(!q){box.className='jourjEmpty';box.textContent='Saisissez un nom, un téléphone, un code ou un numéro de table.';return;}
+  const list=adminReservationsCache.filter(r=>normalizeAdminSearch([r.nom,r.prenom,r.telephone,r.code_reservation,r.numero_table].join(' ')).includes(q)).slice(0,12);
+  if(!list.length){box.className='jourjEmpty';box.textContent='Aucun client trouvé pour ce Bingo.';return;}
+  box.className='';box.innerHTML='';
+  const count=document.createElement('div');count.className='jourjPeople';count.textContent=list.length+' réservation'+(list.length>1?'s':'')+' trouvée'+(list.length>1?'s':'');box.appendChild(count);
+  list.forEach(r=>{
+    const nb=Math.max(0,Number(r.nombre_personnes||0));
+    const na=Math.max(0,Math.min(nb,Number(r.nombre_arrives||0)));
+    const complete=nb>0 && na===nb;
+    const partial=na>0 && !complete;
+    const d=document.createElement('div');d.className='jourjResult'+(complete?' isArrived':'');
+    const n=document.createElement('div');n.className='jourjName';
+    n.textContent=((r.prenom||'')+' '+(r.nom||'')).trim() || 'CLIENT';
+    const status=document.createElement('div');status.className='jourjStatus '+(complete?'arrived':partial?'partial':'wait');status.textContent=complete?'✓ GROUPE COMPLET':partial?'ARRIVÉE PARTIELLE':'À VENIR';
+    const t=document.createElement('div');t.className='jourjTable';t.textContent='TABLE '+(r.numero_table??'—');
+    let seats=[];
+    if(Array.isArray(r.sieges)) seats=r.sieges;
+    else if(typeof r.sieges==='string' && r.sieges.trim()){
+      try{const parsed=JSON.parse(r.sieges); if(Array.isArray(parsed)) seats=parsed;}catch(_){seats=r.sieges.split(',').map(v=>v.trim()).filter(Boolean);}
+    }
+    const st=document.createElement('div');st.className='jourjSeats';st.textContent=seats.length?'CHAISES : '+seats.join(' · '):'CHAISES : à confirmer';
+    const arrivals=document.createElement('div');arrivals.className='jourjArrivalCount';arrivals.textContent='👥 '+na+' / '+nb+' personne'+(nb>1?'s':'')+' arrivée'+(na>1?'s':'');
+    const phone=document.createElement('div');phone.className='jourjPhone';phone.textContent=r.telephone?'📞 '+r.telephone:'';
+    const controls=document.createElement('div');controls.className='jourjArrivalBtns';
+    const minus=document.createElement('button');minus.type='button';minus.className='jourjMinus';minus.textContent='− 1';minus.disabled=na<=0;minus.onclick=()=>setJourJArrivals(r.id,na-1);
+    const plus=document.createElement('button');plus.type='button';plus.className='jourjPlus';plus.textContent='+ 1';plus.disabled=na>=nb;plus.onclick=()=>setJourJArrivals(r.id,na+1);
+    controls.append(minus,plus);
+    const all=document.createElement('button');all.type='button';all.className='jourjCheckBtn'+(complete?' undo':'');all.textContent=complete?'↩ REMETTRE À 0':'✓ TOUT LE GROUPE ARRIVÉ';all.onclick=()=>setJourJArrivals(r.id,complete?0:nb);
+    d.append(n,status,t,st,arrivals);if(r.telephone)d.append(phone);d.append(controls,all);box.appendChild(d);
+  });
+}
+
+let jourJListingFilter='all';
+function setJourJListingFilter(filter,btn){
+  jourJListingFilter=filter||'all';
+  document.querySelectorAll('.jourjFilterBtn').forEach(b=>b.classList.toggle('active',b===btn));
+  renderJourJListing();
+}
+function getJourJState(r){
+  const nb=Math.max(0,Number(r.nombre_personnes||0));
+  const na=Math.max(0,Math.min(nb,Number(r.nombre_arrives||0)));
+  return {nb,na,state:(nb>0&&na===nb)?'complete':na>0?'partial':'wait'};
+}
+function renderJourJListing(){
+  const box=document.getElementById('jourJListingResults');
+  const summary=document.getElementById('jourJListingSummary');
+  if(!box)return;
+  const input=document.getElementById('jourJListingSearch');
+  const q=normalizeAdminSearch(input?input.value:'');
+  let list=adminReservationsCache.filter(r=>{
+    const x=getJourJState(r);
+    if(jourJListingFilter!=='all' && x.state!==jourJListingFilter)return false;
+    if(!q)return true;
+    return normalizeAdminSearch([r.nom,r.prenom,r.telephone,r.numero_table,r.code_reservation].join(' ')).includes(q);
+  }).sort((a,b)=>Number(a.numero_table||0)-Number(b.numero_table||0)||String(a.nom||'').localeCompare(String(b.nom||''),'fr'));
+  const totals=adminReservationsCache.reduce((a,r)=>{const x=getJourJState(r);a[x.state]++;a.people+=x.nb;a.arrived+=x.na;return a;},{wait:0,partial:0,complete:0,people:0,arrived:0});
+  if(summary)summary.textContent=`${adminReservationsCache.length} réservation(s) • ${totals.wait} à venir • ${totals.partial} partielle(s) • ${totals.complete} complète(s) • ${totals.arrived}/${totals.people} personnes arrivées`;
+  if(!list.length){box.className='jourjEmpty';box.textContent='Aucune réservation dans cette vue.';return;}
+  box.className='';box.innerHTML='';
+  list.forEach(r=>{
+    const x=getJourJState(r);
+    let seats=[];
+    if(Array.isArray(r.sieges))seats=r.sieges;
+    else if(typeof r.sieges==='string'&&r.sieges.trim()){try{const p=JSON.parse(r.sieges);if(Array.isArray(p))seats=p;}catch(_){seats=r.sieges.split(',').map(v=>v.trim()).filter(Boolean);}}
+    const row=document.createElement('div');row.className='jourjListRow';
+    const top=document.createElement('div');top.className='jourjListTop';
+    const left=document.createElement('div');
+    const name=document.createElement('div');name.className='jourjListName';name.textContent=((r.prenom||'')+' '+(r.nom||'')).trim()||'CLIENT';
+    const place=document.createElement('div');place.className='jourjListPlace';place.textContent='TABLE '+(r.numero_table??'—')+(seats.length?' • '+seats.join(' · '):'');
+    left.append(name,place);
+    const prog=document.createElement('div');prog.className='jourjListProgress '+x.state;prog.textContent=x.na+' / '+x.nb;
+    top.append(left,prog);row.append(top);
+    if(r.telephone){const tel=document.createElement('div');tel.className='jourjPhone';tel.textContent='📞 '+r.telephone;row.append(tel);}
+    const noteWrap=document.createElement('div'); noteWrap.style.marginTop='8px';
+    const noteInput=document.createElement('input'); noteInput.type='text'; noteInput.value=r.note_interne||''; noteInput.placeholder='📝 Note interne (Admin uniquement)'; noteInput.style.width='100%'; noteInput.style.boxSizing='border-box'; noteInput.style.padding='9px 10px'; noteInput.style.borderRadius='10px'; noteInput.style.border='1px solid #d7dde5';
+    const noteBtn=document.createElement('button'); noteBtn.type='button'; noteBtn.className='btn'; noteBtn.style.marginTop='6px'; noteBtn.textContent='💾 ENREGISTRER LA NOTE';
+    noteBtn.onclick=()=>saveInternalNote(r.id,noteInput.value);
+    noteWrap.append(noteInput,noteBtn); row.append(noteWrap);
+    box.append(row);
+  });
+}
+
+async function saveInternalNote(id, note){
+  if(!adminUnlocked || !adminAccessToken){ alert('Session Admin absente. Reconnectez-vous.'); return; }
+  try{
+    const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/admin_set_bingo_note',{
+      method:'POST',
+      headers:authHeaders({'Accept':'application/json','Content-Type':'application/json'}),
+      body:JSON.stringify({p_reservation_id:Number(id),p_note:String(note||'').trim()})
+    });
+    const raw=await res.text();
+    let data=null; try{data=raw?JSON.parse(raw):null;}catch(_){data=raw;}
+    if(!res.ok) throw new Error((data&&data.message)||('Enregistrement impossible ('+res.status+')'));
+    const r=adminReservationsCache.find(x=>Number(x.id)===Number(id)); if(r) r.note_interne=String(note||'').trim();
+    alert('✓ Note interne enregistrée');
+  }catch(e){ alert(e.message||'Enregistrement impossible.'); }
+}
+function exportJourJListingCSV(){
+  try{
+    const list=[...adminReservationsCache].sort((a,b)=>Number(a.numero_table||0)-Number(b.numero_table||0)||String(a.nom||'').localeCompare(String(b.nom||''),'fr'));
+    if(!list.length){ alert('Aucune réservation à exporter.'); return; }
+    const rows=[['Table','Nom','Prénom','Chaises','Personnes','Arrivées','État','Téléphone','Note interne']];
+    list.forEach(r=>{
+      const x=getJourJState(r);
+      let seats='';
+      if(Array.isArray(r.sieges)) seats=r.sieges.join(' · ');
+      else seats=String(r.sieges||'');
+      const state=x.state==='complete'?'GROUPE COMPLET':x.state==='partial'?'ARRIVÉE PARTIELLE':'À VENIR';
+      rows.push([r.numero_table||'',r.nom||'',r.prenom||'',seats,x.nb,x.na,state,r.telephone||'',r.note_interne||'']);
+    });
+    const csv='\ufeff'+rows.map(row=>row.map(csvCell).join(';')).join('\r\n');
+    const d=new Date();
+    const date=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const filename='listing_jour_j_'+date+'.csv';
+
+    // Méthode principale : téléchargement Blob
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=filename;
+    a.style.position='fixed';
+    a.style.left='-9999px';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{try{a.remove();URL.revokeObjectURL(url);}catch(_){}},3000);
+
+    // Retour visible : si le navigateur bloque le téléchargement, l'utilisateur le saura.
+    const msg=document.getElementById('jourJListingSummary');
+    if(msg) msg.textContent='✓ Export demandé : '+filename+' — vérifiez le dossier Téléchargements.';
+  }catch(e){
+    console.error('Export listing Jour J',e);
+    alert('Export impossible : '+(e && e.message ? e.message : 'erreur inconnue'));
+  }
+}
+function printJourJListing(){
+  if(!adminUnlocked) return;
+  const list=[...adminReservationsCache].sort((a,b)=>Number(a.numero_table||0)-Number(b.numero_table||0)||String(a.nom||'').localeCompare(String(b.nom||''),'fr'));
+  const w=window.open('','_blank'); if(!w){alert('Autorisez les fenêtres contextuelles pour imprimer le listing.');return;}
+  const rows=list.map(r=>{const x=getJourJState(r); const seats=Array.isArray(r.sieges)?r.sieges.join(' · '):(r.sieges||''); const state=x.state==='complete'?'GROUPE COMPLET':x.state==='partial'?'ARRIVÉE PARTIELLE':'À VENIR'; return `<tr><td><b>${r.numero_table||''}</b></td><td>${(r.prenom||'')+' '+(r.nom||'')}</td><td>${seats}</td><td>${x.na}/${x.nb}</td><td>${state}</td><td>${r.note_interne||''}</td></tr>`;}).join('');
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Listing Jour J</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#172033}h1{margin:0 0 4px}p{color:#666}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{border:1px solid #ccc;padding:8px;text-align:left}th{background:#f0f3f7}@media print{button{display:none}}</style></head><body><h1>Listing Jour J</h1><p>Réservations • tables • chaises • arrivées</p><table><thead><tr><th>Table</th><th>Client</th><th>Chaises</th><th>Arrivées</th><th>État</th><th>Note interne</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>window.print()<\/script></body></html>`); w.document.close();
+}
+
 function filterAdminReservations(){
   const input=document.getElementById('adminSearch');
   const q=normalizeAdminSearch(input ? input.value : '');
@@ -1197,7 +1432,7 @@ async function loadAdminReservations(){
   const box=document.getElementById('adminList');
   box.innerHTML='<div class="adminempty">Chargement…</div>';
   try{
-    const res=await fetch(endpoint('event_id=eq.'+encodeURIComponent(activeEventId)+'&select=id,nom,prenom,telephone,nombre_personnes,numero_table,statut,commentaire,code_reservation,sieges&order=numero_table.asc'),{headers:authHeaders()});
+    const res=await fetch(endpoint('event_id=eq.'+encodeURIComponent(activeEventId)+'&select=id,nom,prenom,telephone,nombre_personnes,numero_table,statut,commentaire,code_reservation,sieges,arrive,arrive_at,nombre_arrives,note_interne&order=numero_table.asc'),{headers:authHeaders()});
     if(res.status===401 || res.status===403){
       setAdminSession('',''); showAdminState();
       throw new Error('Session administrateur expirée. Reconnectez-vous.');
@@ -1210,6 +1445,9 @@ async function loadAdminReservations(){
     if(search) search.value='';
 
     renderAdminReservations(adminReservationsCache);
+    updateEnhancedDashboard();
+    renderJourJ();
+    renderJourJListing();
   }catch(e){
     adminReservationsCache=[];
     const count=document.getElementById('adminSearchCount');
