@@ -1,0 +1,2063 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#17324d">
+<!-- Version sécurisée : choix de table + chaises, blocage temporaire Supabase, réservation via RPC -->
+<title>Bingo — Choix de table et chaises</title>
+<style>
+:root{--navy:#17324d;--blue:#2f6f9f;--bg:#f4f7fa;--green:#e4f3e8;--greenb:#5f9f70;--orange:#fff1c9;--grey:#e5e7eb;--red:#b42318}
+*{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:var(--bg);color:#1e293b}
+.app{min-height:100vh;max-width:520px;margin:auto;background:#fff;box-shadow:0 0 25px #0001;padding-bottom:88px}
+.topbar{background:var(--navy);color:white;padding:calc(16px + env(safe-area-inset-top)) 18px 16px;position:sticky;top:0;z-index:30}
+.topbar h1{font-size:20px;margin:0} .topbar p{font-size:12px;margin:4px 0 0;opacity:.85}
+.status{font-size:12px;padding:8px 16px;text-align:center;background:#eef6ff;color:#174a73;border-bottom:1px solid #d9e9f7}
+.status.err{background:#fff0f0;color:#8a1c1c}
+.screen{display:none;padding:16px} .screen.active{display:block}
+.card{background:white;border:1px solid #e5eaf0;border-radius:18px;padding:14px;margin-bottom:14px;box-shadow:0 5px 14px #17324d0d}
+label{font-size:12px;font-weight:800;color:var(--navy);display:block;margin-bottom:5px}
+input{width:100%;padding:13px;border:1px solid #ccd6e0;border-radius:12px;font-size:16px;margin-bottom:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}.successbox{display:none;background:#e9f8ee;border:1px solid #9bd1aa;border-radius:14px;padding:14px;margin-top:12px;color:#145c2d}.successbox b{display:block;margin-bottom:5px}.codebox{font-size:26px;letter-spacing:4px;font-weight:900;color:#17324d;background:white;border:1px dashed #8aa4bb;border-radius:10px;padding:10px;text-align:center;margin:8px 0}.danger{background:#fff0f0!important;color:#9b1c1c!important}.modifyinfo{background:#f6f8fb;border-radius:12px;padding:10px;margin:10px 0;font-size:12px;line-height:1.5}
+.hero{background:linear-gradient(135deg,#17324d,#254f73);color:white;border-radius:14px;padding:22px 20px;margin-bottom:18px;box-shadow:0 6px 18px rgba(23,50,77,.12)}
+.hero h2{margin:0 0 6px;font-size:22px} .hero p{margin:0;font-size:13px;opacity:.9}
+.btn{width:100%;border:0;border-radius:13px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;background:var(--navy);color:white}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn.secondary{background:#e9eef4;color:var(--navy)}
+.legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;margin-top:8px}.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px}
+.planScroller{overflow:auto;border:1px solid #d8e0e8;border-radius:16px;background:#fbfcfd}
+.room{position:relative;width:900px;height:560px;background:white;border:2px solid #384b5c}
+.stage{position:absolute;left:30%;top:5%;width:20%;height:22%;border:2px solid #596b7a;background:#f8fafc;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900}
+.table{position:absolute;transform:translate(-50%,-50%);border:2px solid var(--greenb);background:var(--green);color:#145c2d;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 7px #0002}
+.table.long{width:44px;height:142px;border-radius:9px} .table.medium{width:47px;height:122px;border-radius:9px} .table.small{width:44px;height:98px;border-radius:9px} .table.round{width:72px;height:72px;border-radius:50%}
+.num{font-size:19px;font-weight:900} .remaining{font-size:10px;font-weight:800;margin-top:4px}
+.table.low{background:var(--orange);border-color:#d49b23;color:#775700} .table.full,.table.blocked{background:var(--grey);border-color:#9ca3af;color:#6b7280;cursor:not-allowed}
+.table.selected{outline:4px solid var(--blue);outline-offset:2px;background:#dcecff;color:#17324d}
+.barcentral{position:absolute;left:50%;bottom:2%;width:19%;height:9%;border:2px solid #596b7a;background:#f8fafc;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+.barjt{position:absolute;left:69%;bottom:12%;width:11%;height:10%;border:2px solid #596b7a;background:#f8fafc;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800}
+.reserve{position:absolute;left:69%;bottom:2%;width:11%;height:9%;border:2px solid #596b7a;background:#f8fafc;display:flex;align-items:center;justify-content:center;font-size:11px}
+.message{display:none;background:#eaf2f7;color:var(--navy);padding:12px;border-radius:12px;font-weight:800;margin-top:10px}
+.bottomnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:min(520px,100%);display:grid;grid-template-columns:repeat(4,1fr);background:white;border-top:1px solid #dce3ea;padding:8px 8px calc(8px + env(safe-area-inset-bottom));z-index:40}
+.navbtn{background:none;border:0;padding:8px;font-size:11px;color:#667085;font-weight:700} .navbtn.active{color:var(--navy)}
+.navicon{font-size:20px;display:block;margin-bottom:2px}
+.statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.stat{background:#f7f9fb;border-radius:12px;padding:10px;text-align:center}.stat b{display:block;font-size:20px;color:var(--navy)}.stat span{font-size:10px;color:#667085}
+.small{font-size:12px;color:#667085;line-height:1.45} textarea{width:100%;min-height:88px;resize:vertical;font-family:inherit;box-sizing:border-box}
+.notice{background:#fff8e7;border:1px solid #f0dc9a;border-radius:12px;padding:10px;font-size:11px;color:#765b11}
+.adminrow{border:1px solid #e5eaf0;border-radius:12px;padding:10px;margin:8px 0;background:#fbfcfd}.adminrowtop{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.adminname{font-weight:800;color:var(--navy);font-size:13px}.admindetail{font-size:11px;color:#667085;margin-top:3px}.delbtn{border:0;background:#fff0f0;color:#9b1c1c;border-radius:9px;padding:8px 10px;font-size:11px;font-weight:800}
+.seatBlockGrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:10px}
+.seatBlockBtn{border:1px solid #b9c6d2;background:#e8f5eb;color:#145c2d;border-radius:9px;padding:9px 3px;font-size:11px;font-weight:900;cursor:pointer}
+.seatBlockBtn.blocked{background:#fff0f0;border-color:#e0a1a1;color:#9b1c1c;text-decoration:line-through}
+.seatBlockBtn.occupied{background:#e5e7eb;border-color:#b7bec6;color:#667085;cursor:not-allowed}
+.seatBlockLegend{font-size:11px;color:#667085;line-height:1.4;margin-top:8px}
+.adminempty{text-align:center;color:#667085;font-size:12px;padding:16px 4px}
+.tablebadge{display:inline-flex;align-items:center;gap:4px;border:0;background:#eef5fb;color:#17324d;border-radius:8px;padding:4px 7px;font-size:11px;font-weight:800;cursor:pointer;margin-top:5px}
+.tablebadge:hover{background:#e1edf8}
+.tablemodal{position:fixed;inset:0;background:rgba(16,36,54,.45);z-index:100;display:none;align-items:flex-end;justify-content:center}
+.tablemodal.show{display:flex}
+.tablepanel{width:min(520px,100%);max-height:82vh;overflow:auto;background:white;border-radius:18px 18px 0 0;padding:16px;box-shadow:0 -10px 35px rgba(0,0,0,.18)}
+.tablepanelhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.tablepanel h3{margin:0;color:var(--navy);font-size:18px}
+.closemodal{border:0;background:#f2f4f7;border-radius:9px;padding:8px 11px;font-weight:800;color:#344054}
+.tableperson{border:1px solid #e5eaf0;border-radius:11px;padding:10px;margin:7px 0;background:#fbfcfd}
+.tableperson b{color:var(--navy)}
+.authbox{border:1px solid #e5eaf0;border-radius:14px;padding:14px;background:#fbfcfd;margin-top:10px}
+.authbox h3{margin:0 0 8px;color:#17324d;font-size:17px}
+.authmsg{font-size:12px;color:#667085;margin:8px 0}
+.recoveryOverlay{display:none;position:fixed;inset:0;z-index:9999;background:#f5f7fa;padding:20px;overflow:auto}
+.recoveryOverlay.show{display:block}
+.recoveryCard{max-width:480px;margin:8vh auto;background:#fff;border-radius:18px;padding:20px;box-shadow:0 10px 35px rgba(0,0,0,.12)}
+.recoveryCard h2{margin:0 0 8px;color:#17324d}
+
+
+.rgpd{margin-top:14px;padding:12px;border:1px solid #cbd5e1;border-radius:12px;background:#f8fafc;font-size:11px;line-height:1.45;color:#475569}
+.rgpd b{color:#17324d}.rgpd summary{cursor:pointer;font-weight:800;color:#17324d;font-size:12px}.rgpd a{color:#17324d;font-weight:700}
+.rgpdcheck{display:flex;gap:9px;align-items:flex-start;margin-top:12px;font-size:11px;color:#344054}.rgpdcheck input{width:18px;height:18px;margin:0;flex:0 0 auto}
+.demoBadge{margin:10px 16px 0;padding:8px 10px;border-radius:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:10px;font-weight:700;text-align:center}
+
+.seatPanel{display:none;margin-top:12px;border:1px solid #d8e0e8;border-radius:16px;padding:14px;background:#fbfcfd}
+.seatPanel.show{display:block}
+.seatTitle{font-weight:900;color:var(--navy);margin-bottom:4px}
+.seatHint{font-size:11px;color:#667085;margin-bottom:10px}
+.seatLayout{display:grid;grid-template-columns:1fr 52px 1fr;gap:10px;align-items:stretch}
+.seatSide{display:flex;flex-direction:column;gap:6px}
+.tableMini{background:#e9eef4;border:2px solid #8aa4bb;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:900;color:var(--navy);min-height:100%}
+.seat{border:1px solid #9ab3a1;background:#e4f3e8;color:#145c2d;border-radius:9px;padding:8px 4px;font-size:11px;font-weight:900;cursor:pointer}
+.seat.selectedSeat{background:#dcecff;border-color:#2f6f9f;color:#17324d;outline:2px solid #2f6f9f}
+.seat.unavailable{background:#e5e7eb;border-color:#aeb4bb;color:#777;cursor:not-allowed;text-decoration:line-through}
+.seat.temporary{background:#fff1c9;border-color:#d49b23;color:#775700;cursor:not-allowed}
+.seatCounter{font-size:12px;font-weight:800;color:var(--navy);margin:10px 0 4px}
+.participantFields{margin-top:10px}
+.participantRow{display:grid;grid-template-columns:70px 1fr;gap:8px;align-items:center;margin-top:6px}
+.participantRow span{font-size:11px;font-weight:800;color:#475569}
+.participantRow input{margin:0;padding:9px;font-size:13px}
+.modifySeatPanel{margin-top:12px;border:1px solid #d8e0e8;border-radius:16px;padding:14px;background:#fbfcfd}
+.modifySeatGrid{display:grid;grid-template-columns:1fr 52px 1fr;gap:10px;margin-top:10px}
+.modifySeatSide{display:flex;flex-direction:column;gap:6px}
+
+/* === ÉTAPE 1 : éditeur de plan Admin (brouillon local, sans impact sur le plan client) === */
+.planAdminToolbar{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}
+.planAdminToolbar .btn{padding:11px;font-size:12px}
+.planEditorWrap{overflow:auto;border:1px solid #d8e0e8;border-radius:14px;background:#f7f9fb;padding:8px}
+.planEditorCanvas{position:relative;width:900px;height:560px;background:#fff;border:2px solid #384b5c;background-size:contain;background-position:center;background-repeat:no-repeat;touch-action:none}
+.planEditorTable{position:absolute;transform:translate(-50%,-50%);border:2px solid #2f6f9f;background:#eaf4ff;color:#17324d;display:flex;align-items:center;justify-content:center;flex-direction:column;font-weight:900;cursor:grab;user-select:none;box-shadow:0 2px 7px #0002}
+.planEditorTable.long{width:44px;height:142px;border-radius:9px}.planEditorTable.medium{width:47px;height:122px;border-radius:9px}.planEditorTable.small{width:44px;height:98px;border-radius:9px}.planEditorTable.round{width:72px;height:72px;border-radius:50%}
+.planEditorTable.active{outline:4px solid #f0b429;outline-offset:2px}.planEditorTable span{font-size:10px;font-weight:700}
+.planEditorFields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.planEditorFields input,.planEditorFields select{width:100%;padding:10px;border:1px solid #ccd6e0;border-radius:10px;font-size:14px;margin-bottom:8px;background:#fff}
+.planEditorInfo{font-size:11px;color:#667085;line-height:1.45;margin:8px 0}.planDraftBadge{display:inline-block;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:999px;padding:4px 8px;font-size:10px;font-weight:800;margin-left:5px}
+
+
+/* === ÉTAPE 2 : bibliothèque de plans + préparation d’événements (toujours sans impact client) === */
+.planLibrary{display:grid;gap:8px;margin-top:10px}.planSavedItem{border:1px solid #dce4ec;border-radius:12px;padding:10px;background:#fbfcfd}.planSavedTop{display:flex;justify-content:space-between;gap:8px;align-items:center}.planSavedName{font-weight:900;color:var(--navy);font-size:13px}.planSavedMeta{font-size:10px;color:#667085;margin-top:3px}.planSavedActions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px}.planSavedActions button{border:0;border-radius:9px;padding:8px 5px;font-size:10px;font-weight:800;cursor:pointer}.miniPrimary{background:#17324d;color:#fff}.miniSecondary{background:#e9eef4;color:#17324d}.miniDanger{background:#fff0f0;color:#9b1c1c}.eventDraftBox{border:1px solid #d8e0e8;border-radius:12px;padding:10px;background:#f8fafc;margin-top:10px}.eventDraftBox select{width:100%;padding:11px;border:1px solid #ccd6e0;border-radius:10px;background:#fff;margin-bottom:10px}.safeBadge{display:inline-block;background:#e9f8ee;border:1px solid #9bd1aa;color:#145c2d;border-radius:999px;padding:4px 8px;font-size:10px;font-weight:800;margin-left:5px}
+
+
+/* === ÉTAPE 3 : activation locale de test === */
+.activeEventBox{border:1px solid #9bd1aa;background:#e9f8ee;border-radius:12px;padding:10px;margin-top:10px;font-size:12px;color:#145c2d;line-height:1.45}.activeEventBox.off{border-color:#d8e0e8;background:#f8fafc;color:#667085}
+
+/* === ÉTAPE 5 : application multi-Bingo === */
+.cloudBadge{display:inline-block;background:#ecfdf3;border:1px solid #a6e0b8;color:#166534;border-radius:999px;padding:4px 8px;font-size:10px;font-weight:800;margin-left:5px}
+.cloudItem{border:1px solid #dbe5ee;border-radius:12px;padding:10px;margin-top:8px;background:#fbfcfd}.cloudItem b{color:var(--navy)}.cloudMeta{font-size:11px;color:#667085;margin-top:3px}.cloudActions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.cloudActions button{border:0;border-radius:9px;padding:8px 10px;font-size:10px;font-weight:800;cursor:pointer}.cloudPrimary{background:var(--navy);color:#fff}.cloudSecondary{background:#e9eef4;color:var(--navy)}
+
+
+.jourjHero{background:linear-gradient(135deg,#17324d,#244d70);color:white;border-radius:16px;padding:16px;margin-bottom:12px}
+.jourjHero b{font-size:20px}.jourjCounters{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:10px 0 14px}.jourjCounter{background:#f3f6f9;border-radius:12px;padding:10px;text-align:center}.jourjCounter b{display:block;font-size:22px;color:#17324d}.jourjCounter span{font-size:11px;color:#667085;font-weight:700}.jourjStatus{display:inline-block;border-radius:99px;padding:5px 10px;font-size:12px;font-weight:900;margin:4px 0 6px}.jourjStatus.wait{background:#fff4d6;color:#8a5a00}.jourjStatus.partial{background:#e8f1fb;color:#174a73}.jourjStatus.arrived{background:#e4f3e8;color:#176b35}.jourjCheckBtn{width:100%;margin-top:12px;border:0;border-radius:12px;padding:12px;font-weight:900;cursor:pointer;background:#17324d;color:white}.jourjCheckBtn.undo{background:#eef2f6;color:#17324d}.jourjArrivalCount{font-size:18px;font-weight:900;margin-top:10px}.jourjArrivalBtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.jourjArrivalBtns button{border:0;border-radius:12px;padding:12px;font-weight:900;cursor:pointer}.jourjMinus{background:#eef2f6;color:#17324d}.jourjPlus{background:#17324d;color:white}.jourjResult.isArrived{border-color:#4f9b68;background:#f6fbf7}.jourjResult{border:2px solid #17324d;border-radius:16px;padding:16px;margin-top:12px;background:#fff;color:#17324d}.jourjTable{font-size:32px;font-weight:900;color:#17324d;line-height:1.05;margin-top:4px}.jourjSeats{font-size:20px;font-weight:900;color:#17324d;margin-top:10px}.jourjName{font-size:18px;font-weight:900;color:#17324d;margin-bottom:8px;text-transform:uppercase}.jourjPeople{font-size:14px;font-weight:800;color:#334155;margin-top:8px}.jourjPhone{font-size:12px;color:#667085;margin-top:6px}.jourjEmpty{text-align:center;padding:18px;color:#667085}
+.jourjListingFilters{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:10px 0}.jourjFilterBtn{border:1px solid #d6dee7;background:#f6f8fa;color:#17324d;border-radius:10px;padding:9px 5px;font-size:11px;font-weight:900;cursor:pointer}.jourjFilterBtn.active{background:#17324d;color:#fff;border-color:#17324d}.jourjListRow{border:1px solid #dbe3eb;border-radius:12px;padding:12px;margin-top:8px;background:#fff}.jourjListTop{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.jourjListName{font-weight:900;color:#17324d;text-transform:uppercase}.jourjListPlace{font-size:13px;font-weight:800;color:#334155;margin-top:4px}.jourjListProgress{font-weight:900;white-space:nowrap}.jourjListProgress.wait{color:#8a5a00}.jourjListProgress.partial{color:#174a73}.jourjListProgress.complete{color:#176b35}.jourjListSummary{font-size:12px;color:#667085;font-weight:700;margin-top:8px}@media(max-width:560px){.jourjListingFilters{grid-template-columns:repeat(2,1fr)}}
+
+.adminQuickGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}.adminQuickGrid .btn{margin:0}.fillbar{height:10px;background:#edf0f3;border-radius:99px;overflow:hidden;margin-top:8px}.fillbar>div{height:100%;background:#17324d;width:0%}
+
+/* === PLAN LIVE JOUR J === */
+.liveLegend{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;margin:10px 0}.liveLegend span{display:inline-flex;align-items:center;gap:5px}.liveDot{width:11px;height:11px;border-radius:50%;display:inline-block}.livePlanWrap{overflow:auto;border:1px solid #d8e0e8;border-radius:14px;background:#f7f9fb;padding:8px}.liveRoom{position:relative;width:900px;height:560px;background:#fff;border:2px solid #384b5c}.liveStage{position:absolute;left:30%;top:5%;width:20%;height:22%;border:2px solid #596b7a;background:#f8fafc;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900}.liveTable{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid #9ca3af;background:#f3f4f6;color:#475569;box-shadow:0 2px 7px #0002;cursor:pointer;font-weight:900}.liveTable.long{width:44px;height:142px;border-radius:9px}.liveTable.medium{width:47px;height:122px;border-radius:9px}.liveTable.small{width:44px;height:98px;border-radius:9px}.liveTable.round{width:72px;height:72px;border-radius:50%}.liveTable.wait{background:#fff4d6;border-color:#d49b23;color:#7a5200}.liveTable.partial{background:#e8f1fb;border-color:#2f6f9f;color:#174a73}.liveTable.complete{background:#e4f3e8;border-color:#5f9f70;color:#176b35}.liveTable .liveNum{font-size:18px}.liveTable .liveCount{font-size:9px;margin-top:3px}.liveSummary{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:10px 0}.liveStat{background:#f3f6f9;border-radius:11px;padding:9px 5px;text-align:center}.liveStat b{display:block;color:#17324d;font-size:18px}.liveStat span{font-size:9px;color:#667085;font-weight:800}.liveDetailGroup{border:1px solid #e5eaf0;border-radius:11px;padding:10px;margin:8px 0;background:#fbfcfd}.liveDetailGroup b{color:#17324d}.liveDetailState{font-size:11px;font-weight:900;margin-top:5px}@media(max-width:560px){.liveSummary{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+
+<div id="recoveryOverlay" class="recoveryOverlay">
+  <div class="recoveryCard">
+    <h2>🔐 Nouveau mot de passe</h2>
+    <p class="small">Choisissez un nouveau mot de passe pour votre accès administrateur.</p>
+    <label>Nouveau mot de passe</label>
+    <input id="recoveryPassword1" type="password" autocomplete="new-password" placeholder="Au moins 12 caractères">
+    <label>Confirmez le mot de passe</label>
+    <input id="recoveryPassword2" type="password" autocomplete="new-password" placeholder="Retapez le mot de passe">
+    <div id="recoveryMessage" class="authmsg"></div>
+    <button class="btn" onclick="saveRecoveryPassword()">ENREGISTRER LE NOUVEAU MOT DE PASSE</button>
+  </div>
+</div>
+
+<div class="app">
+  <div class="topbar"><h1>BINGO</h1><p>Réservation de votre table</p>
+  <div id="status" class="status">Connexion à la base...</div><
+
+  <section id="home" class="screen active">
+   <div class="hero"><h2 id="publicHeroTitle">Bienvenue</h2><p id="publicHeroText">Choisissez votre table et profitez pleinement de votre soirée.</p></div>
+    <div class="card">
+      <div class="grid2">
+        <div><label>Nom</label><input id="name" autocomplete="family-name" placeholder="Nom"></div>
+        <div><label>Prénom</label><input id="firstname" autocomplete="given-name" placeholder="Prénom"></div>
+      </div>
+      <label>Téléphone</label>
+      <input id="phone" type="tel" autocomplete="tel" placeholder="06 00 00 00 00">
+      <label>Nombre de personnes</label>
+      <input id="party" type="number" min="1" max="30" oninput="refresh()">
+      <label>Demande particulière <span style="font-weight:400;color:#667085">(facultatif)</span></label>
+      <textarea id="comment" placeholder="Ex. : bord de table, personne en fauteuil roulant, autre demande…"></textarea>
+      <p class="small" style="margin-top:6px">Nous ferons notre maximum pour respecter votre demande selon les disponibilités. Merci de ne pas indiquer d'information médicale : si nécessaire, mentionnez simplement « emplacement adapté / fauteuil roulant ».</p>
+      <div class="rgpd">
+        <details>
+          <summary>🔒 Information sur vos données personnelles</summary>
+          <p><b>Finalité :</b> les informations saisies sont utilisées uniquement pour gérer votre réservation de table au Bingo, vous identifier en cas de modification ou d’a00nnulation et organiser votre placement.</p>
+          <p><b>Données :</b> nom, prénom, téléphone, nombre de personnes, table choisie et éventuelle demande pratique.</p>
+          <p><b>Destinataires :</b> uniquement les membres du personnel habilités à gérer les réservations, ainsi que les prestataires techniques nécessaires au fonctionnement du service.</p>
+          <p><b>Durée de conservation :</b> vos données sont conservées pendant 30 jours après le Bingo du 29 octobre 2026, puis supprimées.</p>
+          <p><b>Contact :</b> Perrine – Pasino de Saint-Amand-les-Eaux.</p>
+          <p><b>Vos droits :</b> vous pouvez demander l’accès, la rectification, l’effacement ou la limitation de vos données selon les conditions prévues par le RGPD. Les coordonnées permettant d’exercer ces droits seront ajoutées après validation par le siège / DPO. Vous pouvez également saisir la CNIL.</p>
+        </details>
+      </div>
+      <label class="rgpdcheck"><input id="privacyAck" type="checkbox"><span>J’ai pris connaissance des informations relatives à l’utilisation de mes données personnelles.</span></label>
+      <button class="btn" onclick="goToPlanWithPrivacy()">CHOISIR MA TABLE</button>
+      <div id="successBox" class="successbox"><b>Réservation enregistrée ✅</b><div>Votre code de réservation :</div><div id="successCode" class="codebox"></div><div class="small">Conservez ce code avec votre numéro de téléphone pour modifier ou annuler votre réservation.</div></div>
+    </div>
+    <div class="notice"><b>Réservation en ligne :</b> les places disponibles sont mises à jour automatiquement.</div>
+  </section>
+
+  <section id="plan" class="screen">
+    <div class="card">
+      <b style="color:#17324d">Votre groupe : <span id="groupInfo">2 personnes</span></b>
+      <div class="legend">
+        <span><i class="dot" style="background:#e4f3e8"></i>Disponible</span>
+        <span><i class="dot" style="background:#fff1c9"></i>Peu de places</span>
+        <span><i class="dot" style="background:#e5e7eb"></i>Indisponible</span>
+      </div>
+    </div>
+    <div class="planScroller">
+      <div class="room">
+        <div class="stage">SCÈNE</div>
+        <button class="table round" data-id="17" style="left:10%;top:20%;" onclick="chooseTable(17)"><span class="num">17</span><span class="remaining" id="p17">...</span></button><button class="table round" data-id="18" style="left:22%;top:20%;" onclick="chooseTable(18)"><span class="num">18</span><span class="remaining" id="p18">...</span></button><button class="table round" data-id="2" style="left:53%;top:20%;" onclick="chooseTable(2)"><span class="num">2</span><span class="remaining" id="p2">...</span></button><button class="table round" data-id="1" style="left:65%;top:20%;" onclick="chooseTable(1)"><span class="num">1</span><span class="remaining" id="p1">...</span></button><button class="table long" data-id="16" style="left:7%;top:47%;" onclick="chooseTable(16)"><span class="num">16</span><span class="remaining" id="p16">...</span></button><button class="table long" data-id="15" style="left:13%;top:47%;" onclick="chooseTable(15)"><span class="num">15</span><span class="remaining" id="p15">...</span></button><button class="table long" data-id="14" style="left:19%;top:47%;" onclick="chooseTable(14)"><span class="num">14</span><span class="remaining" id="p14">...</span></button><button class="table long" data-id="12" style="left:25%;top:47%;" onclick="chooseTable(12)"><span class="num">12</span><span class="remaining" id="p12">...</span></button><button class="table long" data-id="11" style="left:31%;top:47%;" onclick="chooseTable(11)"><span class="num">11</span><span class="remaining" id="p11">...</span></button><button class="table long" data-id="10" style="left:37%;top:47%;" onclick="chooseTable(10)"><span class="num">10</span><span class="remaining" id="p10">...</span></button><button class="table long" data-id="9" style="left:43%;top:47%;" onclick="chooseTable(9)"><span class="num">9</span><span class="remaining" id="p9">...</span></button><button class="table long" data-id="8" style="left:49%;top:47%;" onclick="chooseTable(8)"><span class="num">8</span><span class="remaining" id="p8">...</span></button><button class="table long" data-id="7" style="left:55%;top:47%;" onclick="chooseTable(7)"><span class="num">7</span><span class="remaining" id="p7">...</span></button><button class="table long" data-id="6" style="left:61%;top:47%;" onclick="chooseTable(6)"><span class="num">6</span><span class="remaining" id="p6">...</span></button><button class="table long" data-id="5" style="left:67%;top:47%;" onclick="chooseTable(5)"><span class="num">5</span><span class="remaining" id="p5">...</span></button><button class="table long" data-id="4" style="left:73%;top:47%;" onclick="chooseTable(4)"><span class="num">4</span><span class="remaining" id="p4">...</span></button><button class="table long" data-id="3" style="left:79%;top:47%;" onclick="chooseTable(3)"><span class="num">3</span><span class="remaining" id="p3">...</span></button><button class="table long" data-id="19" style="left:7%;top:73%;" onclick="chooseTable(19)"><span class="num">19</span><span class="remaining" id="p19">...</span></button><button class="table long" data-id="20" style="left:13%;top:73%;" onclick="chooseTable(20)"><span class="num">20</span><span class="remaining" id="p20">...</span></button><button class="table long" data-id="21" style="left:19%;top:73%;" onclick="chooseTable(21)"><span class="num">21</span><span class="remaining" id="p21">...</span></button><button class="table long" data-id="22" style="left:25%;top:73%;" onclick="chooseTable(22)"><span class="num">22</span><span class="remaining" id="p22">...</span></button><button class="table long" data-id="23" style="left:31%;top:73%;" onclick="chooseTable(23)"><span class="num">23</span><span class="remaining" id="p23">...</span></button><button class="table medium" data-id="24" style="left:40%;top:73%;" onclick="chooseTable(24)"><span class="num">24</span><span class="remaining" id="p24">...</span></button><button class="table small" data-id="25" style="left:48%;top:73%;" onclick="chooseTable(25)"><span class="num">25</span><span class="remaining" id="p25">...</span></button><button class="table small" data-id="26" style="left:54%;top:73%;" onclick="chooseTable(26)"><span class="num">26</span><span class="remaining" id="p26">...</span></button><button class="table small" data-id="27" style="left:60%;top:73%;" onclick="chooseTable(27)"><span class="num">27</span><span class="remaining" id="p27">...</span></button><button class="table small" data-id="28" style="left:66%;top:73%;" onclick="chooseTable(28)"><span class="num">28</span><span class="remaining" id="p28">...</span></button>
+        <div class="barcentral">Bar Central</div>
+        <div class="barjt">Bar JT</div>
+        <div class="reserve">Réserve</div>
+      </div>
+    </div>
+    <div id="message" class="message"></div>
+
+    <div id="seatPanel" class="seatPanel">
+      <div class="seatTitle">Choisissez vos chaises</div>
+      <div id="seatHint" class="seatHint">Sélectionnez une table pour afficher ses chaises.</div>
+      <div id="seatLayout" class="seatLayout"></div>
+      <div id="seatCounter" class="seatCounter"></div>
+      <div id="participantFields" class="participantFields"></div>
+    </div>
+
+    <button id="confirmBtn" class="btn" style="margin-top:12px" onclick="confirmChoice()">CONFIRMER MA RÉSERVATION</button>
+    <button class="btn secondary" style="margin-top:8px" onclick="refreshPublicAvailability()">ACTUALISER LES PLACES</button>
+  </section>
+
+  <section id="modify" class="screen">
+    <div class="hero"><h2>Modifier ma réservation</h2><p>Retrouvez votre réservation avec votre téléphone et votre code personnel.</p></div>
+    <div class="card" id="lookupCard">
+      <label>Téléphone</label>
+      <input id="lookupPhone" type="tel" placeholder="06 00 00 00 00">
+      <label>Code de réservation</label>
+      <input id="lookupCode" maxlength="20" autocomplete="off" placeholder="Votre code de réservation">
+      <button class="btn" onclick="findMyReservation()">RETROUVER MA RÉSERVATION</button>
+      <div id="lookupMessage" class="small" style="margin-top:10px;text-align:center;font-weight:700;color:#17324d"></div>
+    </div>
+    <div class="card" id="editCard" style="display:none">
+      <b style="color:#17324d">Ma réservation</b>
+      <div id="modifyInfo" class="modifyinfo"></div>
+      <label>Nombre de personnes</label>
+      <input id="modifyParty" type="number" min="1" max="30" value="1" onchange="renderModifySeats()" oninput="renderModifySeats()">
+      <label>Demande particulière <span style="font-weight:400;color:#667085">(facultatif)</span></label>
+      <textarea id="modifyComment"></textarea>
+      <div class="modifySeatPanel">
+        <div class="seatTitle">Mes chaises</div>
+        <div class="seatHint">Vous pouvez retirer ou ajouter des chaises selon le nouveau nombre de personnes.</div>
+        <div id="modifySeatGrid" class="modifySeatGrid"></div>
+        <div id="modifySeatCounter" class="seatCounter"></div>
+        <div id="modifyParticipants" class="participantFields"></div>
+      </div>
+      <button class="btn" onclick="saveMyModification()">ENREGISTRER LA MODIFICATION</button>
+      <button type="button" id="cancelReservationBtn" class="btn danger" style="margin-top:8px" >ANNULER MA RÉSERVATION</button><div id="cancelReservationMessage" class="small" style="margin-top:8px;text-align:center;font-weight:700"></div>
+      <button class="btn secondary" style="margin-top:8px" onclick="resetModify()">RETOUR</button>
+    </div>
+  </section>
+
+  <section id="admin" class="screen">
+    <div id="adminLoginCard" class="card">
+      <b style="color:#17324d">🔐 Connexion administrateur</b>
+      <p class="small">Accès réservé à l'organisation. La connexion utilise votre compte Supabase sécurisé.</p>
+      <div class="authbox">
+        <label>Adresse e-mail</label>
+       <input id="adminEmail" type="email" autocomplete="off">
+        <label>Mot de passe</label>
+        <input id="adminPassword" type="password" autocomplete="current-password" placeholder="Votre mot de passe">
+        <div id="adminLoginMessage" class="authmsg"></div>
+        <button class="btn" onclick="adminLogin()">SE CONNECTER</button>
+      </div>
+    </div>
+
+    <div id="adminContent" style="display:none">
+      <div class="card">
+        <b style="color:#17324d">📊 Tableau de bord</b>
+        <div class="statgrid" style="margin-top:10px">
+          <div class="stat"><b id="nbRes">0</b><span>réservations</span></div>
+          <div class="stat"><b id="nbPers">0</b><span>personnes</span></div>
+          <div class="stat"><b id="nbFree">0</b><span>places libres</span></div>
+        </div>
+        <div class="statgrid" style="margin-top:8px">
+          <div class="stat"><b id="nbBlocked">0</b><span>chaises bloquées</span></div>
+          <div class="stat"><b id="fillRate">0%</b><span>remplissage</span></div>
+          <div class="stat"><b id="totalCapacity">0</b><span>capacité</span></div>
+        </div>
+        <div class="fillbar"><div id="fillBarInner"></div></div>
+      </div>
+
+      <div class="card" id="jourJCard">
+        <div class="jourjHero"><b>⚡ Mode Jour J</b><div style="font-size:12px;margin-top:4px;opacity:.9">Retrouvez immédiatement un client, sa table et ses chaises.</div></div>
+        <label>Recherche rapide</label>
+        <input id="jourJSearch" type="search" autocomplete="off" placeholder="Nom, prénom, téléphone, code ou table" oninput="renderJourJ()">
+        <div class="jourjCounters"><div class="jourjCounter"><b id="jourJExpected">0</b><span>ATTENDUES</span></div><div class="jourjCounter"><b id="jourJArrived">0</b><span>ARRIVÉES</span></div><div class="jourjCounter"><b id="jourJRemaining">0</b><span>RESTANTES</span></div></div>
+        <div id="jourJActionStatus" style="display:none;margin:10px 0;padding:10px 12px;border-radius:10px;font-weight:800"></div>
+        <div id="jourJResults" class="jourjEmpty">Saisissez un nom, un téléphone ou un code de réservation.</div>
+      </div>
+
+
+      <div class="card" id="jourJLiveCard">
+        <b style="color:#17324d">🗺️ Plan LIVE Jour J</b>
+        <p class="small">Suivez les arrivées table par table. Touchez une table pour afficher les groupes et les chaises.</p>
+        <div class="liveSummary">
+          <div class="liveStat"><b id="liveExpected">0</b><span>ATTENDUS</span></div>
+          <div class="liveStat"><b id="liveArrived">0</b><span>ARRIVÉS</span></div>
+          <div class="liveStat"><b id="liveRemaining">0</b><span>RESTANTS</span></div>
+          <div class="liveStat"><b id="liveRate">0%</b><span>PRÉSENCE</span></div>
+        </div>
+        <div class="liveLegend">
+          <span><i class="liveDot" style="background:#f3f4f6"></i>Sans réservation</span>
+          <span><i class="liveDot" style="background:#fff4d6"></i>À venir</span>
+          <span><i class="liveDot" style="background:#e8f1fb"></i>Partielle</span>
+          <span><i class="liveDot" style="background:#e4f3e8"></i>Complète</span>
+        </div>
+        <div class="livePlanWrap"><div id="jourJLivePlan" class="liveRoom"></div></div>
+      </div>
+
+      <div class="card" id="jourJListingCard">
+        <b style="color:#17324d">📋 Listing Jour J</b>
+        <p class="small">Vue d’ensemble des groupes selon leur état d’arrivée.</p>
+        <input id="jourJListingSearch" type="search" autocomplete="off" placeholder="Nom, téléphone ou numéro de table" oninput="renderJourJListing()">
+        <div class="jourjListingFilters">
+          <button type="button" class="jourjFilterBtn active" data-filter="all" onclick="setJourJListingFilter('all',this)">TOUS</button>
+          <button type="button" class="jourjFilterBtn" data-filter="wait" onclick="setJourJListingFilter('wait',this)">À VENIR</button>
+          <button type="button" class="jourjFilterBtn" data-filter="partial" onclick="setJourJListingFilter('partial',this)">PARTIELS</button>
+          <button type="button" class="jourjFilterBtn" data-filter="complete" onclick="setJourJListingFilter('complete',this)">COMPLETS</button>
+        </div>
+        <div id="jourJListingSummary" class="jourjListSummary"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
+          <button type="button" class="btn" onclick="printJourJListing()">🖨️ IMPRIMER LE LISTING</button>
+          <button type="button" class="btn" onclick="exportJourJListingCSV()">📥 EXPORTER LE LISTING</button>
+        </div>
+        <div id="jourJListingResults" class="jourjEmpty">Chargement du listing…</div>
+      </div>
+
+      <div class="card">
+        <b style="color:#17324d">🕒 Ouverture des réservations</b>
+        <p class="small">Choisissez la date et l’heure d’ouverture et de fermeture des réservations.</p>
+        <label>Ouverture</label><input id="bingoOpensAt" type="datetime-local">
+        <label>Fermeture</label><input id="bingoClosesAt" type="datetime-local">
+        <div id="bingoSettingsMessage" class="authmsg"></div>
+        <button class="btn" onclick="saveBingoSettings()">ENREGISTRER LES DATES</button>
+      </div>
+
+      <div class="card">
+        <b style="color:#17324d">Réservations</b>
+        <p class="small">Espace réservé à l'organisation.</p>
+        <label>🔎 Rechercher une réservation</label>
+        <input id="adminSearch" type="search" autocomplete="off"
+               placeholder="Nom, prénom, téléphone ou code"
+               oninput="filterAdminReservations()">
+        <div id="adminSearchCount" class="small" style="margin-top:-5px;margin-bottom:8px"></div>
+        <div id="adminList" style="margin-top:10px"></div>
+        <button class="btn" style="margin-top:10px" onclick="exportReservationsCSV()">📥 EXPORTER LES RÉSERVATIONS (CSV)</button>
+        <button class="btn secondary" style="margin-top:8px" onclick="loadAdminReservations()">ACTUALISER</button>
+      </div>
+
+      <div class="card">
+        <b style="color:#17324d">🪑 Bloquer une chaise</b>
+        <p class="small">Bloquez une chaise pour l'organisation. Elle ne pourra plus être réservée par un client.</p>
+        <label>Table</label>
+        <select id="adminBlockTable" onchange="loadSeatBlocksAdmin()"></select>
+        <label>Motif (facultatif)</label>
+        <input id="adminBlockReason" type="text" maxlength="120" placeholder="Organisation, VIP, problème technique…">
+        <div id="adminBlockMessage" class="authmsg"></div>
+        <div id="adminSeatBlockGrid" class="seatBlockGrid"></div>
+        <div class="seatBlockLegend">🟢 Disponible · 🔴 Bloquée · ⚪ Déjà occupée</div>
+      </div>
+
+
+      <div class="card" id="planManagerCard">
+        <b style="color:#17324d">🗺️ Gestion du plan de salle <span class="planDraftBadge">BROUILLON</span></b>
+        <p class="small">Préparez un nouveau plan sans modifier celui actuellement visible par les clients. Ce brouillon est enregistré uniquement sur cet appareil pour cette première étape.</p>
+        <label>Importer un fond de plan (image)</label>
+        <input id="planBackgroundFile" type="file" accept="image/png,image/jpeg,image/webp" onchange="importPlanBackground(event)">
+        <div class="planAdminToolbar">
+          <button class="btn" onclick="addPlanTable()">➕ AJOUTER UNE TABLE</button>
+          <button class="btn secondary" onclick="loadCurrentPlanAsDraft()">📋 COPIER LE PLAN ACTUEL</button>
+          <button class="btn secondary" onclick="savePlanDraft()">💾 ENREGISTRER LE BROUILLON</button>
+          <button class="btn secondary danger" onclick="clearPlanDraft()">🗑️ EFFACER LE BROUILLON</button>
+        </div>
+        <div id="planEditorMessage" class="authmsg">Aucun brouillon chargé.</div>
+        <div class="planEditorWrap"><div id="planEditorCanvas" class="planEditorCanvas"></div></div>
+        <div id="planEditorControls" style="display:none">
+          <div class="planEditorFields">
+            <div><label>N° de table</label><input id="planTableNumber" type="number" min="1" onchange="updateSelectedPlanTable()"></div>
+            <div><label>Nombre de places</label><input id="planTableCapacity" type="number" min="1" max="100" onchange="updateSelectedPlanTable()"></div>
+            <div><label>Forme</label><select id="planTableShape" onchange="updateSelectedPlanTable()"><option value="long">Longue</option><option value="medium">Moyenne</option><option value="small">Petite</option><option value="round">Ronde</option></select></div>
+            <div><label>Position</label><input id="planTablePosition" type="text" readonly></div>
+          </div>
+          <button class="btn danger" onclick="deleteSelectedPlanTable()">SUPPRIMER CETTE TABLE</button>
+        </div>
+        <div class="planEditorInfo">Déplacez une table avec la souris ou le doigt. Cliquez sur une table pour modifier son numéro, sa capacité ou sa forme. <b>Rien ici ne change le plan public tant que nous n'ajoutons pas l'étape d'activation sécurisée.</b></div>
+      </div>
+
+      <div class="card" id="planLibraryCard">
+        <b style="color:#17324d">📚 Mes plans enregistrés <span class="safeBadge">PRÉPARATION</span></b>
+        <p class="small">Enregistrez plusieurs configurations de salle. Elles restent sur cet appareil et ne changent pas le plan utilisé par les clients.</p>
+        <label>Nom du plan</label>
+        <input id="planLibraryName" type="text" maxlength="80" placeholder="Ex. Salle Bingo Saint-Amand">
+        <button class="btn" onclick="saveNamedPlan()">💾 ENREGISTRER CE PLAN</button>
+        <div id="planLibraryList" class="planLibrary"></div>
+      </div>
+
+      <div class="card" id="eventDraftCard">
+        <b style="color:#17324d">📅 Préparer un Bingo <span class="planDraftBadge">BROUILLON</span></b>
+        <p class="small">Associez un nom, une date et un plan à un futur Bingo. Cette préparation est locale : aucune réservation ni aucun plan client n'est modifié.</p>
+        <label>Nom du Bingo</label>
+        <input id="eventDraftName" type="text" maxlength="100" placeholder="Ex. Bingo Bal des Vampires">
+        <label>Date de l'événement</label>
+        <input id="eventDraftDate" type="date">
+        <label>Plan de salle</label>
+        <select id="eventDraftPlan"></select>
+        <button class="btn" onclick="saveEventDraft()">ENREGISTRER LA PRÉPARATION</button>
+        <button class="btn secondary" style="margin-top:8px" onclick="activateEventLocally()">✅ ACTIVER CE BINGO POUR LE TEST</button>
+        <button class="btn secondary danger" style="margin-top:8px" onclick="deactivateEventLocally()">↩️ REVENIR AU PLAN ACTUEL</button>
+        <div id="eventDraftMessage" class="authmsg"></div>
+        <div id="activeEventStatus" class="activeEventBox off">Aucun Bingo de test activé sur cet appareil.</div>
+      </div>
+
+      <div class="card" id="cloudManagementCard">
+        <b style="color:#17324d">☁️ Plans & Bingos Supabase <span class="cloudBadge">SÉCURISÉ</span></b>
+        <p class="small">Cette partie enregistre réellement vos plans et vos événements dans Supabase. Ils seront disponibles sur vos autres appareils.</p>
+        <label>Nom du plan à enregistrer dans Supabase</label>
+        <input id="cloudPlanName" type="text" maxlength="80" placeholder="Ex. Salle Saint-Amand">
+        <button class="btn" onclick="saveCurrentPlanToSupabase()">☁️ ENREGISTRER LE PLAN DANS SUPABASE</button>
+        <div id="cloudPlanMessage" class="authmsg"></div>
+        <div id="cloudPlansList"></div>
+        <hr style="border:0;border-top:1px solid #e5eaf0;margin:16px 0">
+        <b style="color:#17324d">📅 Créer un Bingo dans Supabase</b>
+        <label style="margin-top:10px">Nom du Bingo</label>
+        <input id="cloudEventName" type="text" maxlength="100" placeholder="Ex. Bingo Bal des Vampires">
+        <label>Date de l'événement</label>
+        <input id="cloudEventDate" type="date">
+        <label>Ouverture des réservations</label>
+        <input id="cloudEventOpensAt" type="datetime-local">
+        <label>Fermeture des réservations</label>
+        <input id="cloudEventClosesAt" type="datetime-local">
+        <label>Plan de salle</label>
+        <select id="cloudEventPlan"></select>
+        <button class="btn" onclick="createEventInSupabase()">☁️ CRÉER LE BINGO DANS SUPABASE</button>
+        <div id="cloudEventMessage" class="authmsg"></div>
+        <div id="cloudEventsList"></div>
+        <button class="btn secondary" style="margin-top:10px" onclick="loadCloudManagement()">ACTUALISER SUPABASE</button>
+      </div>
+
+      <div class="card">
+        <b style="color:#17324d">Sécurité du compte</b>
+        <p class="small">Vous pouvez changer votre mot de passe administrateur ici.</p>
+        <label>Nouveau mot de passe</label>
+        <input id="adminNewPassword1" type="password" autocomplete="new-password" placeholder="Au moins 12 caractères">
+        <label>Confirmez le nouveau mot de passe</label>
+        <input id="adminNewPassword2" type="password" autocomplete="new-password" placeholder="Retapez le mot de passe">
+        <button class="btn secondary" style="margin-top:8px" onclick="changeAdminPassword()">CHANGER MON MOT DE PASSE</button>
+        <button class="btn secondary" style="margin-top:8px" onclick="adminLogout()">SE DÉCONNECTER</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="tableModal" class="tablemodal" onclick="if(event.target===this) closeTableModal()">
+    <div class="tablepanel">
+      <div class="tablepanelhead">
+        <h3 id="tableModalTitle">Table</h3>
+        <button class="closemodal" onclick="closeTableModal()">FERMER</button>
+      </div>
+      <div id="tableModalBody"></div>
+    </div>
+  </div>
+
+  <nav class="bottomnav">
+    <button class="navbtn active" data-screen="home" onclick="go('home')"><span class="navicon">🏠</span>Accueil</button>
+    <button class="navbtn" data-screen="plan" onclick="go('plan')"><span class="navicon">🗺️</span>Plan</button>
+    <button class="navbtn" data-screen="modify" onclick="go('modify')"><span class="navicon">✏️</span>Modifier</button>
+    <button class="navbtn" data-screen="admin" onclick="openAdmin()"><span class="navicon">⚙️</span>Admin</button>
+  </nav>
+</div>
+
+<script>
+const SUPABASE_URL="https://eykzoazjaczudczpybzr.supabase.co";
+const SUPABASE_KEY="sb_publishable_1CZGXToVHS3MMTGlXzNLXg_0xdAZYMl";
+const TABLE="R\u00e9servation";
+const caps={"1": 10, "2": 10, "3": 30, "4": 30, "5": 30, "6": 30, "7": 30, "8": 30, "9": 30, "10": 30, "11": 30, "12": 30, "14": 30, "15": 30, "16": 30, "17": 10, "18": 10, "19": 30, "20": 30, "21": 30, "22": 30, "23": 30, "24": 20, "25": 12, "26": 12, "27": 12, "28": 12};
+let rows=[];
+let selected=null;
+let loading=false;
+let unavailableSeats=[];
+let selectedSeats=[];
+let holdToken=null;
+let holdExpiresAt=null;
+let adminReservationsCache=[];
+let adminSeatBlocks=[];
+let activeEventId=null;
+let activeEventData=null;
+
+function endpoint(query='') {
+  return SUPABASE_URL + '/rest/v1/' + encodeURIComponent(TABLE) + (query ? '?' + query : '');
+}
+function headers(extra={}) {
+  return Object.assign({
+    'apikey': SUPABASE_KEY,
+    'Content-Type':'application/json'
+  }, extra);
+}
+function status(text, err=false) {
+  const s=document.getElementById('status');
+  s.textContent=text;
+  s.classList.toggle('err',err);
+}
+function used(id) {
+  return rows.filter(r=>Number(r.numero_table)===Number(id) && String(r.statut||'confirmee').toLowerCase()!=='annulee')
+             .reduce((s,r)=>s+Number(r.nombre_personnes||0),0);
+}
+function left(id) { return Math.max(0,caps[id]-used(id)); }
+function party() { return Math.max(1,parseInt(document.getElementById("party").value||"1",10)); }
+
+async function loadReservations() {
+  try {
+    if(!activeEventId){ const ok=await loadActiveBingoFromSupabase(); if(!ok) throw new Error('Aucun Bingo actif.'); }
+    loading=true; status('Actualisation des places...');
+    const [occRes, seatRes, blockRes] = await Promise.all([
+      fetch(SUPABASE_URL + '/rest/v1/rpc/get_bingo_occupancy_v2',{
+        method:'POST', headers:headers(), body:JSON.stringify({p_event_id:activeEventId})
+      }),
+      fetch(SUPABASE_URL + '/rest/v1/rpc/get_bingo_unavailable_seats_v2',{
+        method:'POST', headers:headers(), body:JSON.stringify({p_event_id:activeEventId})
+      }),
+      fetch(SUPABASE_URL + '/rest/v1/rpc/get_bingo_seat_blocks',{
+        method:'POST', headers:headers(), body:'{}'
+      })
+    ]);
+    if(!occRes.ok) throw new Error('Lecture des disponibilités impossible ('+occRes.status+')');
+    if(!seatRes.ok) throw new Error('Lecture des chaises impossible ('+seatRes.status+')');
+    if(!blockRes.ok) throw new Error('Lecture des chaises bloquées impossible ('+blockRes.status+')');
+
+    const occupancy=await occRes.json();
+    const unavailable=await seatRes.json();
+    const blocked=await blockRes.json();
+
+    unavailableSeats=[
+      ...(unavailable||[]),
+      ...(blocked||[]).map(x=>({numero_table:x.numero_table,siege:x.siege,statut:'bloquee'}))
+    ];
+
+    rows=(occupancy||[]).map(r=>({
+      numero_table:Number(r.numero_table),
+      nombre_personnes:Number(r.places_occupees||0),
+      statut:'confirmee'
+    }));
+
+    status('Places et chaises synchronisées ✓');
+    refresh();
+    renderSeatPicker();
+    renderAdmin();
+  } catch(e) {
+    status('Erreur de connexion à la base : '+e.message,true);
+  } finally { loading=false; }
+}
+
+async function refreshPublicAvailability(){
+  await loadReservations();
+}
+
+function refresh() {
+  const g=party();
+  document.getElementById("groupInfo").textContent=g+" personne"+(g>1?"s":"");
+  if(selectedSeats.length>g){
+    // Les chaises en trop seront retirées lors d'une nouvelle sélection.
+    selectedSeats=selectedSeats.slice(0,g);
+  }
+  Object.keys(caps).forEach(k=>{
+    const id=+k,b=document.querySelector('[data-id="'+id+'"]'),r=left(id);
+    b.classList.remove("low","full","blocked","selected");
+    document.getElementById("p"+id).textContent=r+" libre"+(r>1?"s":"");
+    if(r<=0)b.classList.add("full");
+    else if(r<g)b.classList.add("blocked");
+    else if(r<=5)b.classList.add("low");
+    if(selected===id)b.classList.add("selected");
+  });
+}
+
+async function releaseAllMyHeldSeats(){
+  if(!holdToken || !selected) { selectedSeats=[]; return; }
+  const seats=[...selectedSeats];
+  await Promise.all(seats.map(s=>fetch(SUPABASE_URL+'/rest/v1/rpc/release_bingo_seat_v2',{
+    method:'POST',
+    headers:headers(),
+    body:JSON.stringify({p_event_id:activeEventId,p_numero_table:selected,p_siege:s,p_hold_token:holdToken})
+  }).catch(()=>null)));
+  selectedSeats=[];
+  holdToken=null;
+  holdExpiresAt=null;
+}
+
+async function chooseTable(id) {
+  if(left(id)<party()) return;
+  if(selected!==id && selectedSeats.length){
+    await releaseAllMyHeldSeats();
+  }
+  selected=id;
+  selectedSeats=[];
+  holdToken=null;
+  holdExpiresAt=null;
+  await loadReservations();
+  refresh();
+  renderSeatPicker();
+  const m=document.getElementById("message");
+  m.style.display="block";
+  m.textContent="Table "+id+" sélectionnée. Choisissez maintenant "+party()+" chaise(s).";
+}
+
+function seatName(n){ return 'C'+String(n).padStart(2,'0'); }
+
+function seatStatus(table, seat){
+  const rec=(unavailableSeats||[]).find(x=>Number(x.numero_table)===Number(table) && String(x.siege)===String(seat));
+  return rec ? String(rec.statut||'reservee') : '';
+}
+
+function renderSeatPicker(){
+  const panel=document.getElementById('seatPanel');
+  const layout=document.getElementById('seatLayout');
+  const hint=document.getElementById('seatHint');
+  const counter=document.getElementById('seatCounter');
+  const participants=document.getElementById('participantFields');
+  if(!panel || !layout) return;
+
+  if(!selected){
+    panel.classList.remove('show');
+    layout.innerHTML='';
+    return;
+  }
+
+  panel.classList.add('show');
+  const cap=Number(caps[selected]||0);
+  const perSide=Math.ceil(cap/2);
+  const leftSeats=[], rightSeats=[];
+  for(let i=1;i<=cap;i++){
+    (i<=perSide?leftSeats:rightSeats).push(i);
+  }
+
+  const makeBtn=(n)=>{
+    const seat=seatName(n);
+    const mine=selectedSeats.includes(seat);
+    const st=seatStatus(selected,seat);
+    const blocked=!mine && !!st;
+    const cls='seat'+(mine?' selectedSeat':'')+(blocked?(st==='temporaire'?' temporary':' unavailable'):'');
+    const disabled=blocked?' disabled':'';
+    const suffix=st==='temporaire' && !mine?' ⏳':(st==='bloquee' && !mine?' 🔒':(st==='reservee' && !mine?' ✕':''));
+    return `<button class="${cls}"${disabled} onclick="toggleSeat('${seat}')">${seat}${suffix}</button>`;
+  };
+
+  layout.innerHTML=
+    `<div class="seatSide">${leftSeats.map(makeBtn).join('')}</div>`+
+    `<div class="tableMini">TABLE<br>${selected}</div>`+
+    `<div class="seatSide">${rightSeats.map(makeBtn).join('')}</div>`;
+
+  hint.textContent='Aucune chaise en bout de table : choisissez vos places de chaque côté.';
+  counter.textContent=selectedSeats.length+' / '+party()+' chaise(s) sélectionnée(s)';
+
+  participants.innerHTML = selectedSeats.length
+    ? '<div class="small"><b>Participants</b> — facultatif</div>' +
+      selectedSeats.map((s,i)=>`<div class="participantRow"><span>${s}</span><input id="participant_${s}" placeholder="Nom / prénom de la personne"></div>`).join('')
+    : '';
+}
+
+async function toggleSeat(seat){
+  if(!selected) return;
+  if(selectedSeats.includes(seat)){
+    if(holdToken){
+      await fetch(SUPABASE_URL+'/rest/v1/rpc/release_bingo_seat_v2',{
+        method:'POST',headers:headers(),
+        body:JSON.stringify({p_event_id:activeEventId,p_numero_table:selected,p_siege:seat,p_hold_token:holdToken})
+      });
+    }
+    selectedSeats=selectedSeats.filter(s=>s!==seat);
+    await loadReservations();
+    renderSeatPicker();
+    return;
+  }
+
+  if(selectedSeats.length>=party()){
+    return alert('Vous avez déjà sélectionné '+party()+' chaise(s).');
+  }
+
+  const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/hold_bingo_seat_v2',{
+    method:'POST',
+    headers:headers(),
+    body:JSON.stringify({
+      p_event_id:activeEventId,
+      p_numero_table:selected,
+      p_siege:seat,
+      p_hold_token:holdToken
+    })
+  });
+  if(!res.ok) return alert('Impossible de bloquer cette chaise.');
+  const data=await res.json();
+  const result=Array.isArray(data)?data[0]:data;
+  if(!result || !result.ok){
+    await loadReservations();
+    renderSeatPicker();
+    return alert((result&&result.message)||'Cette chaise n’est plus disponible.');
+  }
+  holdToken=result.hold_token;
+  holdExpiresAt=result.expires_at;
+  selectedSeats.push(seat);
+  await loadReservations();
+  renderSeatPicker();
+}
+
+function goToPlanWithPrivacy(){
+  const c=document.getElementById('privacyAck');
+  if(!c || !c.checked) return alert("Merci de prendre connaissance des informations relatives à vos données personnelles avant de poursuivre.");
+  go('plan');
+}
+
+function normalizePhone(v){ return String(v||'').replace(/\D/g,''); }
+function reservationCode(){
+  const a=new Uint32Array(1); crypto.getRandomValues(a);
+  return String(100000 + (a[0] % 900000));
+}
+let myReservation=null;
+let modifySelectedSeats=[];
+let modifyHoldToken=null;
+
+async function confirmChoice() {
+  const n=document.getElementById("name").value.trim();
+  const prenom=document.getElementById("firstname").value.trim();
+  const tel=normalizePhone(document.getElementById("phone").value);
+  const p=party();
+  const privacyAck=document.getElementById('privacyAck');
+
+  if(!privacyAck || !privacyAck.checked) return alert("Merci de prendre connaissance des informations relatives à vos données personnelles.");
+  if(!n) return alert("Merci d'indiquer votre nom.");
+  if(!prenom) return alert("Merci d'indiquer votre prénom.");
+  if(tel.length<10) return alert("Merci d'indiquer un numéro de téléphone valide.");
+  if(!selected) return alert("Merci de choisir une table.");
+  if(selectedSeats.length!==p) return alert("Merci de choisir exactement "+p+" chaise(s).");
+  if(!holdToken) return alert("Vos chaises ne sont plus bloquées. Merci de les sélectionner à nouveau.");
+
+  const btn=document.getElementById('confirmBtn');
+  btn.disabled=true;
+
+  try {
+    const commentaire=document.getElementById('comment').value.trim();
+    const participants=selectedSeats.map(s=>{
+      const el=document.getElementById('participant_'+s);
+      return {siege:s,nom:(el?el.value.trim():'')};
+    });
+
+    const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/create_bingo_reservation_v2',{
+      method:'POST',
+      headers:headers(),
+      body:JSON.stringify({
+        p_event_id:activeEventId,
+        p_nom:n,
+        p_prenom:prenom,
+        p_telephone:tel,
+        p_nombre_personnes:p,
+        p_numero_table:selected,
+        p_sieges:selectedSeats,
+        p_participants:participants,
+        p_commentaire:commentaire,
+        p_hold_token:holdToken
+      })
+    });
+
+    if(!res.ok){
+      const txt=await res.text();
+      throw new Error('Enregistrement impossible ('+res.status+'): '+txt.slice(0,180));
+    }
+
+    const data=await res.json();
+    const result=Array.isArray(data)?data[0]:data;
+    if(!result || !result.ok){
+      await loadReservations();
+      renderSeatPicker();
+      return alert((result&&result.message)||"La réservation n'a pas pu être enregistrée.");
+    }
+
+    const tableSaved=selected;
+    const seatsSaved=[...selectedSeats];
+    const code=result.code_reservation;
+
+    selected=null;
+    selectedSeats=[];
+    holdToken=null;
+    holdExpiresAt=null;
+
+    document.getElementById("name").value="";
+    document.getElementById("firstname").value="";
+    document.getElementById("phone").value="";
+    document.getElementById("comment").value="";
+    document.getElementById("message").style.display="none";
+    document.getElementById("seatPanel").classList.remove("show");
+
+    await loadReservations();
+    go('home');
+    document.getElementById('successCode').textContent=code;
+    document.getElementById('successBox').style.display='block';
+    alert("Réservation enregistrée : table "+tableSaved+", chaises "+seatsSaved.join(', ')+". Votre code : "+code);
+  } catch(e) {
+    status(e.message,true);
+    alert("La réservation n'a pas été enregistrée. "+e.message);
+  } finally {
+    btn.disabled=false;
+  }
+}
+
+async function findMyReservation(){
+  const lookupMsg=document.getElementById('lookupMessage');
+  if(lookupMsg) lookupMsg.textContent='';
+  const tel=normalizePhone(document.getElementById('lookupPhone').value);
+  const code=document.getElementById('lookupCode').value.trim();
+  if(tel.length<10 || code.length<6) return alert('Merci de saisir votre téléphone et votre code de réservation.');
+  try{
+    // Sécurité : aucune lecture directe de la table Réservation.
+    // Supabase ne renvoie qu'une réservation correspondant au téléphone + code fournis.
+    const res=await fetch(SUPABASE_URL + '/rest/v1/rpc/get_my_bingo_reservation_v3',{
+      method:'POST',
+      headers:headers(),
+      body:JSON.stringify({p_event_id:activeEventId,p_telephone:tel,p_code:code})
+    });
+    
+  if(!res.ok) throw new Error('Recherche impossible ('+res.status+')');
+  
+    const data=await res.json();
+    if(!data.length){ if(lookupMsg) lookupMsg.textContent='Cette réservation est annulée ou aucune réservation active ne correspond à ces informations.'; return; }
+    myReservation=data[0];
+    document.getElementById('lookupCard').style.display='none';
+    document.getElementById('editCard').style.display='block';
+    document.getElementById('modifyParty').value=myReservation.nombre_personnes;
+    document.getElementById('modifyComment').value=myReservation.commentaire||'';
+    document.getElementById('modifyInfo').innerHTML='<b>'+escapeHtml((myReservation.prenom||'')+' '+(myReservation.nom||''))+'</b><br>Table '+myReservation.numero_table+' • '+myReservation.nombre_personnes+' personne(s)';
+    modifySelectedSeats=Array.isArray(myReservation.sieges)?[...myReservation.sieges]:[];
+    modifyHoldToken=null;
+    await loadReservations();
+    renderModifySeats();
+  }catch(e){ if(lookupMsg) lookupMsg.textContent='Recherche impossible : '+e.message; }
+}
+function escapeHtml(t){ const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+function renderModifySeats(){
+  if(!myReservation) return;
+  const grid=document.getElementById('modifySeatGrid');
+  const counter=document.getElementById('modifySeatCounter');
+  const participants=document.getElementById('modifyParticipants');
+  if(!grid) return;
+  const table=Number(myReservation.numero_table);
+  const cap=Number(caps[table]||0);
+  const target=Math.max(1,parseInt(document.getElementById('modifyParty').value||'1',10));
+  const oldSeats=Array.isArray(myReservation.sieges)?myReservation.sieges:[];
+  const half=Math.ceil(cap/2);
+  const make=(n)=>{
+    const s=seatName(n);
+    const selectedNow=modifySelectedSeats.includes(s);
+    const rec=(unavailableSeats||[]).find(x=>Number(x.numero_table)===table && String(x.siege)===s);
+    const blocked=!!rec && !oldSeats.includes(s) && !selectedNow;
+    const cls='seat'+(selectedNow?' selectedSeat':'')+(blocked?(String(rec.statut)==='temporaire'?' temporary':' unavailable'):'');
+    return `<button class="${cls}" ${blocked?'disabled':''} onclick="toggleModifySeat('${s}')">${s}${blocked?' ✕':''}</button>`;
+  };
+  grid.innerHTML=`<div class="modifySeatSide">${Array.from({length:half},(_,i)=>make(i+1)).join('')}</div><div class="tableMini">TABLE<br>${table}</div><div class="modifySeatSide">${Array.from({length:cap-half},(_,i)=>make(half+i+1)).join('')}</div>`;
+  counter.textContent=modifySelectedSeats.length+' / '+target+' chaise(s) sélectionnée(s)';
+  const oldP=Array.isArray(myReservation.participants)?myReservation.participants:[];
+  participants.innerHTML=modifySelectedSeats.map(s=>{
+    const p=oldP.find(x=>x&&x.siege===s);
+    return `<div class="participantRow"><span>${s}</span><input id="modifyParticipant_${s}" value="${escapeHtml(p&&p.nom?String(p.nom):'')}" placeholder="Nom / prénom"></div>`;
+  }).join('');
+}
+
+async function toggleModifySeat(seat){
+  if(!myReservation) return;
+  const target=Math.max(1,parseInt(document.getElementById('modifyParty').value||'1',10));
+  const table=Number(myReservation.numero_table);
+  const oldSeats=Array.isArray(myReservation.sieges)?myReservation.sieges:[];
+  if(modifySelectedSeats.includes(seat)){
+    if(!oldSeats.includes(seat) && modifyHoldToken){
+      await fetch(SUPABASE_URL+'/rest/v1/rpc/release_bingo_seat_v2',{method:'POST',headers:headers(),body:JSON.stringify({p_event_id:activeEventId,p_numero_table:table,p_siege:seat,p_hold_token:modifyHoldToken})}).catch(()=>null);
+    }
+    modifySelectedSeats=modifySelectedSeats.filter(s=>s!==seat);
+    await loadReservations(); renderModifySeats(); return;
+  }
+  if(modifySelectedSeats.length>=target) return alert('Vous avez déjà sélectionné '+target+' chaise(s).');
+  if(oldSeats.includes(seat)){ modifySelectedSeats.push(seat); renderModifySeats(); return; }
+  const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/hold_bingo_seat_v2',{method:'POST',headers:headers(),body:JSON.stringify({p_event_id:activeEventId,p_numero_table:table,p_siege:seat,p_hold_token:modifyHoldToken})});
+  if(!res.ok) return alert('Impossible de bloquer cette chaise.');
+  const data=await res.json(), result=Array.isArray(data)?data[0]:data;
+  if(!result||!result.ok){ await loadReservations(); renderModifySeats(); return alert((result&&result.message)||'Cette chaise n’est plus disponible.'); }
+  modifyHoldToken=result.hold_token; modifySelectedSeats.push(seat);
+  await loadReservations(); renderModifySeats();
+}
+
+async function saveMyModification(){
+  if(!myReservation) return;
+  const newParty=Math.max(1,parseInt(document.getElementById('modifyParty').value||'1',10));
+  if(modifySelectedSeats.length!==newParty) return alert('Merci de sélectionner exactement '+newParty+' chaise(s).');
+  const commentaire=document.getElementById('modifyComment').value.trim();
+  const participants=modifySelectedSeats.map(s=>({siege:s,nom:(document.getElementById('modifyParticipant_'+s)?.value||'').trim()}));
+  try{
+    const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/update_my_bingo_reservation_v3',{method:'POST',headers:headers(),body:JSON.stringify({
+      p_event_id:activeEventId,
+      p_telephone:normalizePhone(myReservation.telephone),p_code:myReservation.code_reservation,p_nombre_personnes:newParty,
+      p_sieges:modifySelectedSeats,p_participants:participants,p_commentaire:commentaire,p_hold_token:modifyHoldToken
+    })});
+    if(!res.ok){const t=await res.text();throw new Error('Modification impossible ('+res.status+'): '+t.slice(0,180));}
+    const data=await res.json(), result=Array.isArray(data)?data[0]:data;
+    if(!result||!result.ok){await loadReservations();renderModifySeats();return alert((result&&result.message)||'Modification impossible.');}
+    myReservation.nombre_personnes=newParty; myReservation.commentaire=commentaire||null; myReservation.sieges=[...modifySelectedSeats]; myReservation.participants=participants; modifyHoldToken=null;
+    document.getElementById('modifyInfo').innerHTML='<b>'+escapeHtml((myReservation.prenom||'')+' '+(myReservation.nom||''))+'</b><br>Table '+myReservation.numero_table+' • '+newParty+' personne(s)<br>Chaises : '+escapeHtml(modifySelectedSeats.join(', '));
+    await loadReservations(); renderModifySeats();
+    alert('Votre réservation a bien été modifiée. Les chaises disponibles ont été mises à jour.');
+  }catch(e){alert(e.message);}
+}
+async function cancelMyReservation(){
+  const msg=document.getElementById('cancelReservationMessage');
+  const btn=document.getElementById('cancelReservationBtn');
+  if(msg) msg.textContent='';
+  if(!myReservation){ if(msg) msg.textContent='Réservation introuvable à annuler.'; return; }
+  if(!activeEventId){
+    const ok=await loadActiveBingoFromSupabase().catch(()=>false);
+    if(!ok || !activeEventId){ if(msg) msg.textContent='Aucun Bingo actif.'; return; }
+  }
+  if(btn) btn.disabled=true;
+  if(msg) msg.textContent='Annulation en cours…';
+  try{
+    const res=await fetch(SUPABASE_URL + '/rest/v1/rpc/cancel_my_bingo_reservation_v2',{
+      method:'POST', headers:headers(),
+      body:JSON.stringify({
+        p_event_id:Number(activeEventId),
+        p_telephone:normalizePhone(myReservation.telephone),
+        p_code:String(myReservation.code_reservation||'').trim()
+      })
+    });
+    const raw=await res.text();
+    let data=null; try{data=raw?JSON.parse(raw):null;}catch(_e){}
+    if(!res.ok) throw new Error((data&&data.message)||raw||('Erreur '+res.status));
+    const result=Array.isArray(data)?data[0]:data;
+    if(!result || result.ok!==true) throw new Error((result&&result.message)||'Annulation refusée.');
+    if(msg) msg.textContent='✅ Réservation annulée. Les places sont libérées.';
+    await loadReservations();
+    resetModify();
+    go('modify');
+    const lookupMsg=document.getElementById('lookupMessage');
+    if(lookupMsg) lookupMsg.textContent='✅ Réservation annulée. Toutes vos places sont de nouveau disponibles.';
+  }catch(e){
+    if(msg) msg.textContent='❌ '+(e.message||'Annulation impossible.');
+    window.alert('Annulation impossible : '+(e.message||'erreur inconnue'));
+  }finally{ if(btn) btn.disabled=false; }
+}
+
+function resetModify(){
+  myReservation=null;
+  modifySelectedSeats=[];
+  modifyHoldToken=null;
+  document.getElementById('lookupCard').style.display='block';
+  document.getElementById('editCard').style.display='none';
+  document.getElementById('lookupCode').value='';
+}
+
+let adminAccessToken=sessionStorage.getItem('bingo_admin_access_token')||'';
+let adminRefreshToken=sessionStorage.getItem('bingo_admin_refresh_token')||'';
+let adminUnlocked=!!adminAccessToken;
+
+function authHeaders(extra={}){
+  return Object.assign({
+    'apikey':SUPABASE_KEY,
+    'Authorization':'Bearer '+adminAccessToken,
+    'Content-Type':'application/json'
+  },extra);
+}
+
+function setAdminSession(accessToken, refreshToken=''){
+  adminAccessToken=accessToken||'';
+  adminRefreshToken=refreshToken||'';
+  adminUnlocked=!!adminAccessToken;
+  if(adminAccessToken) sessionStorage.setItem('bingo_admin_access_token',adminAccessToken);
+  else sessionStorage.removeItem('bingo_admin_access_token');
+  if(adminRefreshToken) sessionStorage.setItem('bingo_admin_refresh_token',adminRefreshToken);
+  else sessionStorage.removeItem('bingo_admin_refresh_token');
+}
+
+function showAdminState(){
+  const login=document.getElementById('adminLoginCard');
+  const content=document.getElementById('adminContent');
+  if(login) login.style.display=adminUnlocked?'none':'block';
+  if(content) content.style.display=adminUnlocked?'block':'none';
+}
+
+async function adminLogin(){
+  const email=(document.getElementById('adminEmail').value||'').trim();
+  const password=document.getElementById('adminPassword').value||'';
+  const msg=document.getElementById('adminLoginMessage');
+  if(!email || !password){ msg.textContent='Saisissez votre e-mail et votre mot de passe.'; return; }
+  msg.textContent='Connexion…';
+  try{
+    const res=await fetch(SUPABASE_URL+'/auth/v1/token?grant_type=password',{
+      method:'POST',
+      headers:{'apikey':SUPABASE_KEY,'Content-Type':'application/json'},
+      body:JSON.stringify({email,password})
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.msg||data.error_description||data.message||'Connexion impossible');
+    setAdminSession(data.access_token,data.refresh_token||'');
+    document.getElementById('adminPassword').value='';
+    msg.textContent='';
+    showAdminState();
+    await loadAdminReservations();
+    initAdminBlockTableOptions();
+    await loadSeatBlocksAdmin();
+    await loadReservations();
+    restorePlanDraft(); renderPlanLibrary(); restoreEventDraft();
+  }catch(e){
+    setAdminSession('','');
+    showAdminState();
+    msg.textContent='Connexion refusée : '+e.message;
+  }
+}
+
+async function openAdmin(){
+  go('admin',true);
+  showAdminState();
+  if(adminUnlocked){ await loadAdminReservations(); renderJourJListing(); initAdminBlockTableOptions(); await loadSeatBlocksAdmin(); restorePlanDraft(); renderPlanLibrary(); restoreEventDraft(); }
+}
+
+function adminLogout(){
+  setAdminSession('','');
+  showAdminState();
+  const box=document.getElementById('adminList');
+  if(box) box.innerHTML='';
+}
+
+async function changeAdminPassword(){
+  if(!adminUnlocked) return;
+  const p1=document.getElementById('adminNewPassword1').value||'';
+  const p2=document.getElementById('adminNewPassword2').value||'';
+  if(p1.length<12) return alert('Choisissez un mot de passe d’au moins 12 caractères.');
+  if(p1!==p2) return alert('Les deux mots de passe ne correspondent pas.');
+  try{
+    const res=await fetch(SUPABASE_URL+'/auth/v1/user',{
+      method:'PUT',headers:authHeaders(),body:JSON.stringify({password:p1})
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.msg||data.message||'Modification impossible');
+    document.getElementById('adminNewPassword1').value='';
+    document.getElementById('adminNewPassword2').value='';
+    alert('Mot de passe administrateur modifié.');
+  }catch(e){ alert(e.message); }
+}
+
+function initAdminBlockTableOptions(){
+  const sel=document.getElementById('adminBlockTable');
+  if(!sel || sel.options.length) return;
+  Object.keys(caps).map(Number).sort((a,b)=>a-b).forEach(id=>{
+    const opt=document.createElement('option');
+    opt.value=String(id);
+    opt.textContent='Table '+id+' ('+caps[id]+' places)';
+    sel.appendChild(opt);
+  });
+}
+
+async function loadSeatBlocksAdmin(){
+  if(!adminUnlocked) return;
+  initAdminBlockTableOptions();
+  const table=Number(document.getElementById('adminBlockTable')?.value||0);
+  const grid=document.getElementById('adminSeatBlockGrid');
+  const msg=document.getElementById('adminBlockMessage');
+  if(!grid || !table) return;
+  if(msg) msg.textContent='Chargement…';
+
+  try{
+    const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/get_bingo_seat_blocks_v2',{
+      method:'POST',headers:authHeaders(),body:JSON.stringify({p_event_id:activeEventId})
+    });
+    if(!res.ok) throw new Error('Lecture des blocages impossible ('+res.status+')');
+    adminSeatBlocks=await res.json();
+
+    // Rafraîchit aussi l'occupation pour griser les chaises déjà prises.
+    await loadReservations();
+
+    const blockedSet=new Set((adminSeatBlocks||[])
+      .filter(x=>Number(x.numero_table)===table)
+      .map(x=>String(x.siege)));
+
+    const occupiedSet=new Set((unavailableSeats||[])
+      .filter(x=>Number(x.numero_table)===table && String(x.statut||'')!=='bloquee')
+      .map(x=>String(x.siege)));
+
+    grid.innerHTML='';
+    for(let i=1;i<=Number(caps[table]||0);i++){
+      const seat=seatName(i);
+      const b=document.createElement('button');
+      b.type='button';
+      b.className='seatBlockBtn';
+      if(blockedSet.has(seat)) b.classList.add('blocked');
+      else if(occupiedSet.has(seat)) b.classList.add('occupied');
+
+      b.textContent=seat+(blockedSet.has(seat)?' 🔒':(occupiedSet.has(seat)?' • occupée':''));
+      b.disabled=occupiedSet.has(seat);
+      if(!b.disabled){
+        b.onclick=()=>toggleAdminSeatBlock(table,seat,blockedSet.has(seat));
+      }
+      grid.appendChild(b);
+    }
+
+    if(msg) msg.textContent='';
+    updateEnhancedDashboard();
+  }catch(e){
+    if(msg) msg.textContent=e.message;
+  }
+}
+
+async function toggleAdminSeatBlock(table,seat,isBlocked){
+  if(!adminUnlocked) return;
+  const msg=document.getElementById('adminBlockMessage');
+  const reason=(document.getElementById('adminBlockReason')?.value||'').trim();
+
+  try{
+    if(msg) msg.textContent=isBlocked?'Déblocage…':'Blocage…';
+
+    const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/set_bingo_seat_block_v2',{
+      method:'POST',
+      headers:authHeaders(),
+      body:JSON.stringify({
+        p_event_id:activeEventId,
+        p_numero_table:table,
+        p_siege:seat,
+        p_bloquee:!isBlocked,
+        p_motif:reason||null
+      })
+    });
+
+    const data=await res.json().catch(()=>null);
+    if(!res.ok) throw new Error((data&&data.message)||'Modification impossible ('+res.status+')');
+
+    const result=Array.isArray(data)?data[0]:data;
+    if(!result || !result.ok) throw new Error((result&&result.message)||'Modification refusée');
+
+    if(msg) msg.textContent=result.message||'Enregistré.';
+    await loadSeatBlocksAdmin();
+  }catch(e){
+    if(msg) msg.textContent=e.message;
+  }
+}
+
+function normalizeAdminSearch(value){
+  return String(value||'')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .toLowerCase()
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function renderAdminReservations(list){
+  const box=document.getElementById('adminList');
+  const count=document.getElementById('adminSearchCount');
+  if(!box) return;
+
+  if(count){
+    const total=adminReservationsCache.length;
+    count.textContent=list.length===total
+      ? total+' réservation'+(total>1?'s':'')+' active'+(total>1?'s':'')
+      : list.length+' résultat'+(list.length>1?'s':'')+' sur '+total;
+  }
+
+  if(!list.length){
+    box.innerHTML='<div class="adminempty">Aucune réservation trouvée.</div>';
+    return;
+  }
+
+  box.innerHTML='';
+  list.forEach(r=>{
+    const d=document.createElement('div'); d.className='adminrow';
+    const top=document.createElement('div'); top.className='adminrowtop';
+    const info=document.createElement('div');
+    const nm=document.createElement('div'); nm.className='adminname';
+    nm.textContent=((r.prenom||'')+' '+(r.nom||'Sans nom')).trim();
+
+    const seats=Array.isArray(r.sieges)&&r.sieges.length?' • '+r.sieges.join(', '):'';
+    const dt=document.createElement('div'); dt.className='admindetail';
+    dt.textContent=(r.nombre_personnes||0)+' personne'+(Number(r.nombre_personnes)>1?'s':'')+seats+(r.telephone?' • '+r.telephone:'');
+
+    const tb=document.createElement('button');
+    tb.type='button';
+    tb.className='tablebadge';
+    tb.textContent='🪑 Table '+r.numero_table;
+    tb.onclick=()=>openTableModal(r.numero_table);
+
+    const code=document.createElement('div'); code.className='admindetail';
+    code.style.marginTop='4px'; code.style.fontWeight='700';
+    code.textContent=r.code_reservation?'Code : '+r.code_reservation:'';
+
+    info.append(nm,tb,dt);
+    if(r.code_reservation) info.append(code);
+
+    if(r.commentaire){
+      const cm=document.createElement('div'); cm.className='admindetail';
+      cm.style.marginTop='6px'; cm.style.fontWeight='700'; cm.style.color='#8a5a00';
+      cm.textContent='📝 '+r.commentaire;
+      info.append(cm);
+    }
+
+    const b=document.createElement('button'); b.className='delbtn'; b.textContent='ANNULER';
+    b.onclick=()=>cancelReservation(r.id,r.nom,r.numero_table);
+    top.append(info,b); d.append(top); box.append(d);
+  });
+}
+
+function updateEnhancedDashboard(){
+  const capacity=Object.values(caps).reduce((a,b)=>a+Number(b||0),0);
+  const persons=adminReservationsCache.reduce((a,r)=>a+Number(r.nombre_personnes||0),0);
+  const blocked=(adminSeatBlocks||[]).length;
+  const free=Math.max(0,capacity-persons-blocked);
+  const rate=capacity?Math.round((persons/capacity)*100):0;
+  const set=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
+  set('nbBlocked',blocked); set('fillRate',rate+'%'); set('totalCapacity',capacity); set('nbFree',free);
+  const bar=document.getElementById('fillBarInner'); if(bar)bar.style.width=Math.min(100,rate)+'%';
+}
+function updateJourJCounters(){
+  const expected=adminReservationsCache.reduce((a,r)=>a+Number(r.nombre_personnes||0),0);
+  const arrived=adminReservationsCache.reduce((a,r)=>{
+    const max=Math.max(0,Number(r.nombre_personnes||0));
+    const n=Math.max(0,Math.min(max,Number(r.nombre_arrives||0)));
+    return a+n;
+  },0);
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('jourJExpected',expected); set('jourJArrived',arrived); set('jourJRemaining',Math.max(0,expected-arrived));
+}
+async function setJourJArrivals(id, nombreArrives){
+  const statusBox=document.getElementById('jourJActionStatus');
+  const show=(msg,ok=false)=>{if(statusBox){statusBox.textContent=msg;statusBox.style.display='block';statusBox.style.background=ok?'#e4f3e8':'#fff0f0';statusBox.style.color=ok?'#176b35':'#a61b1b';}};
+  if(!adminUnlocked || !adminAccessToken){show('Session Admin absente. Reconnectez-vous.');return;}
+  const r=adminReservationsCache.find(x=>Number(x.id)===Number(id));
+  const max=Math.max(0,Number(r?.nombre_personnes||0));
+  const target=Math.max(0,Math.min(max,Number(nombreArrives||0)));
+  show('Enregistrement en cours…',true);
+  try{
+    const userRes=await fetch(SUPABASE_URL+'/auth/v1/user',{headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+adminAccessToken}});
+    if(!userRes.ok){setAdminSession('','');showAdminState();throw new Error('Session administrateur expirée. Reconnectez-vous.');}
+    const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/admin_set_bingo_arrivals',{
+      method:'POST',
+      headers:authHeaders({'Accept':'application/json'}),
+      body:JSON.stringify({p_reservation_id:Number(id),p_nombre_arrives:target})
+    });
+    const raw=await res.text();
+    let data=null; try{data=raw?JSON.parse(raw):null;}catch(_){data=raw;}
+    if(res.status===401||res.status===403){setAdminSession('','');showAdminState();throw new Error('Session administrateur expirée. Reconnectez-vous.');}
+    if(!res.ok)throw new Error((data&&data.message)||('Mise à jour impossible ('+res.status+')'));
+    await loadAdminReservations();
+    show(target===max && max>0?'✓ Groupe complet':('✓ '+target+' / '+max+' personne'+(max>1?'s':'')+' arrivée'+(target>1?'s':'')),true);
+    renderJourJ();
+    renderJourJListing();
+    renderJourJLivePlan();
+  }catch(e){show(e.message||'Mise à jour impossible.');window.alert(e.message||'Mise à jour impossible.');}
+}
+function renderJourJ(){
+  const input=document.getElementById('jourJSearch'), box=document.getElementById('jourJResults');
+  updateJourJCounters();
+  if(!box)return;
+  const q=normalizeAdminSearch(input?input.value:'');
+  if(!q){box.className='jourjEmpty';box.textContent='Saisissez un nom, un téléphone, un code ou un numéro de table.';return;}
+  const list=adminReservationsCache.filter(r=>normalizeAdminSearch([r.nom,r.prenom,r.telephone,r.code_reservation,r.numero_table].join(' ')).includes(q)).slice(0,12);
+  if(!list.length){box.className='jourjEmpty';box.textContent='Aucun client trouvé pour ce Bingo.';return;}
+  box.className='';box.innerHTML='';
+  const count=document.createElement('div');count.className='jourjPeople';count.textContent=list.length+' réservation'+(list.length>1?'s':'')+' trouvée'+(list.length>1?'s':'');box.appendChild(count);
+  list.forEach(r=>{
+    const nb=Math.max(0,Number(r.nombre_personnes||0));
+    const na=Math.max(0,Math.min(nb,Number(r.nombre_arrives||0)));
+    const complete=nb>0 && na===nb;
+    const partial=na>0 && !complete;
+    const d=document.createElement('div');d.className='jourjResult'+(complete?' isArrived':'');
+    const n=document.createElement('div');n.className='jourjName';
+    n.textContent=((r.prenom||'')+' '+(r.nom||'')).trim() || 'CLIENT';
+    const status=document.createElement('div');status.className='jourjStatus '+(complete?'arrived':partial?'partial':'wait');status.textContent=complete?'✓ GROUPE COMPLET':partial?'ARRIVÉE PARTIELLE':'À VENIR';
+    const t=document.createElement('div');t.className='jourjTable';t.textContent='TABLE '+(r.numero_table??'—');
+    let seats=[];
+    if(Array.isArray(r.sieges)) seats=r.sieges;
+    else if(typeof r.sieges==='string' && r.sieges.trim()){
+      try{const parsed=JSON.parse(r.sieges); if(Array.isArray(parsed)) seats=parsed;}catch(_){seats=r.sieges.split(',').map(v=>v.trim()).filter(Boolean);}
+    }
+    const st=document.createElement('div');st.className='jourjSeats';st.textContent=seats.length?'CHAISES : '+seats.join(' · '):'CHAISES : à confirmer';
+    const arrivals=document.createElement('div');arrivals.className='jourjArrivalCount';arrivals.textContent='👥 '+na+' / '+nb+' personne'+(nb>1?'s':'')+' arrivée'+(na>1?'s':'');
+    const phone=document.createElement('div');phone.className='jourjPhone';phone.textContent=r.telephone?'📞 '+r.telephone:'';
+    const controls=document.createElement('div');controls.className='jourjArrivalBtns';
+    const minus=document.createElement('button');minus.type='button';minus.className='jourjMinus';minus.textContent='− 1';minus.disabled=na<=0;minus.onclick=()=>setJourJArrivals(r.id,na-1);
+    const plus=document.createElement('button');plus.type='button';plus.className='jourjPlus';plus.textContent='+ 1';plus.disabled=na>=nb;plus.onclick=()=>setJourJArrivals(r.id,na+1);
+    controls.append(minus,plus);
+    const all=document.createElement('button');all.type='button';all.className='jourjCheckBtn'+(complete?' undo':'');all.textContent=complete?'↩ REMETTRE À 0':'✓ TOUT LE GROUPE ARRIVÉ';all.onclick=()=>setJourJArrivals(r.id,complete?0:nb);
+    d.append(n,status,t,st,arrivals);if(r.telephone)d.append(phone);d.append(controls,all);box.appendChild(d);
+  });
+}
+
+
+const LIVE_TABLE_LAYOUT={
+  17:['round',10,20],18:['round',22,20],2:['round',53,20],1:['round',65,20],
+  16:['long',7,47],15:['long',13,47],14:['long',19,47],12:['long',25,47],11:['long',31,47],10:['long',37,47],9:['long',43,47],8:['long',49,47],7:['long',55,47],6:['long',61,47],5:['long',67,47],4:['long',73,47],3:['long',79,47],
+  19:['long',7,73],20:['long',13,73],21:['long',19,73],22:['long',25,73],23:['long',31,73],24:['medium',40,73],25:['small',48,73],26:['small',54,73],27:['small',60,73],28:['small',66,73]
+};
+function getLiveTableData(tableNo){
+  const groups=adminReservationsCache.filter(r=>Number(r.numero_table)===Number(tableNo));
+  const expected=groups.reduce((a,r)=>a+Math.max(0,Number(r.nombre_personnes||0)),0);
+  const arrived=groups.reduce((a,r)=>{const nb=Math.max(0,Number(r.nombre_personnes||0));return a+Math.max(0,Math.min(nb,Number(r.nombre_arrives||0)));},0);
+  const state=!expected?'free':arrived<=0?'wait':arrived>=expected?'complete':'partial';
+  return {groups,expected,arrived,state};
+}
+function getLivePlanTables(){
+  // Priorité au plan du Bingo actif récupéré depuis Supabase.
+  const cloudTables=normalizeCloudTables(activeEventData && activeEventData.tables_config);
+  if(cloudTables.length) return cloudTables;
+  // Secours : ancien plan fixe si aucun plan n'est renvoyé par Supabase.
+  return Object.keys(LIVE_TABLE_LAYOUT).map(k=>{
+    const [shape,x,y]=LIVE_TABLE_LAYOUT[k];
+    return {number:Number(k),shape,x,y,capacity:Number(caps[k]||1)};
+  });
+}
+function renderJourJLivePlan(){
+  const plan=document.getElementById('jourJLivePlan'); if(!plan)return;
+  const expected=adminReservationsCache.reduce((a,r)=>a+Math.max(0,Number(r.nombre_personnes||0)),0);
+  const arrived=adminReservationsCache.reduce((a,r)=>{const nb=Math.max(0,Number(r.nombre_personnes||0));return a+Math.max(0,Math.min(nb,Number(r.nombre_arrives||0)));},0);
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('liveExpected',expected);set('liveArrived',arrived);set('liveRemaining',Math.max(0,expected-arrived));set('liveRate',expected?Math.round(arrived*100/expected)+'%':'0%');
+
+  const tables=getLivePlanTables();
+  const bg=(activeEventData && activeEventData.background_url)||'';
+  plan.style.backgroundImage=bg?`url("${String(bg).replace(/"/g,'%22')}")`:'';
+  plan.style.backgroundSize='contain'; plan.style.backgroundPosition='center'; plan.style.backgroundRepeat='no-repeat';
+  plan.innerHTML='<div class="liveStage">SCÈNE</div>';
+
+  if(!tables.length){
+    plan.innerHTML+='<div class="jourjEmpty" style="position:absolute;left:20px;right:20px;top:45%">Aucune table trouvée dans le plan du Bingo actif.</div>';
+    return;
+  }
+  tables.forEach(t=>{
+    const n=Number(t.number), data=getLiveTableData(n);
+    const shape=['long','medium','small','round'].includes(t.shape)?t.shape:'round';
+    const x=Math.max(0,Math.min(100,Number(t.x)||50)), y=Math.max(0,Math.min(100,Number(t.y)||50));
+    const b=document.createElement('button'); b.type='button'; b.className='liveTable '+shape+' '+data.state;
+    b.style.left=x+'%'; b.style.top=y+'%'; b.onclick=()=>openLiveTableDetail(n);
+    b.innerHTML='<span class="liveNum">'+n+'</span><span class="liveCount">'+(data.expected?data.arrived+'/'+data.expected:'LIBRE')+'</span>';
+    plan.appendChild(b);
+  });
+}
+function parseLiveSeats(r){
+  if(Array.isArray(r.sieges))return r.sieges;
+  if(typeof r.sieges==='string'&&r.sieges.trim()){try{const p=JSON.parse(r.sieges);if(Array.isArray(p))return p;}catch(_){return r.sieges.split(',').map(v=>v.trim()).filter(Boolean);}}
+  return [];
+}
+function openLiveTableDetail(tableNo){
+  const modal=document.getElementById('tableModal'), title=document.getElementById('tableModalTitle'), body=document.getElementById('tableModalBody'); if(!modal||!title||!body)return;
+  const data=getLiveTableData(tableNo); title.textContent='Table '+tableNo+' — LIVE'; body.innerHTML='';
+  const head=document.createElement('div');head.className='jourjPeople';head.textContent=data.expected?data.arrived+' / '+data.expected+' personne(s) arrivée(s)':'Aucune réservation sur cette table';body.appendChild(head);
+  data.groups.forEach(r=>{
+    const x=getJourJState(r), seats=parseLiveSeats(r), d=document.createElement('div');d.className='liveDetailGroup';
+    const name=document.createElement('b');name.textContent=((r.prenom||'')+' '+(r.nom||'')).trim()||'CLIENT';
+    const place=document.createElement('div');place.className='admindetail';place.textContent=seats.length?'Chaises : '+seats.join(' · '):'Chaises : à confirmer';
+    const st=document.createElement('div');st.className='liveDetailState';st.textContent=(x.state==='complete'?'✓ GROUPE COMPLET':x.state==='partial'?'ARRIVÉE PARTIELLE':'À VENIR')+' — '+x.na+'/'+x.nb;
+    d.append(name,place,st);body.appendChild(d);
+  });
+  modal.classList.add('show');
+}
+
+let jourJListingFilter='all';
+function setJourJListingFilter(filter,btn){
+  jourJListingFilter=filter||'all';
+  document.querySelectorAll('.jourjFilterBtn').forEach(b=>b.classList.toggle('active',b===btn));
+  renderJourJListing();
+}
+function getJourJState(r){
+  const nb=Math.max(0,Number(r.nombre_personnes||0));
+  const na=Math.max(0,Math.min(nb,Number(r.nombre_arrives||0)));
+  return {nb,na,state:(nb>0&&na===nb)?'complete':na>0?'partial':'wait'};
+}
+function renderJourJListing(){
+  const box=document.getElementById('jourJListingResults');
+  const summary=document.getElementById('jourJListingSummary');
+  if(!box)return;
+  const input=document.getElementById('jourJListingSearch');
+  const q=normalizeAdminSearch(input?input.value:'');
+  let list=adminReservationsCache.filter(r=>{
+    const x=getJourJState(r);
+    if(jourJListingFilter!=='all' && x.state!==jourJListingFilter)return false;
+    if(!q)return true;
+    return normalizeAdminSearch([r.nom,r.prenom,r.telephone,r.numero_table,r.code_reservation].join(' ')).includes(q);
+  }).sort((a,b)=>Number(a.numero_table||0)-Number(b.numero_table||0)||String(a.nom||'').localeCompare(String(b.nom||''),'fr'));
+  const totals=adminReservationsCache.reduce((a,r)=>{const x=getJourJState(r);a[x.state]++;a.people+=x.nb;a.arrived+=x.na;return a;},{wait:0,partial:0,complete:0,people:0,arrived:0});
+  if(summary)summary.textContent=`${adminReservationsCache.length} réservation(s) • ${totals.wait} à venir • ${totals.partial} partielle(s) • ${totals.complete} complète(s) • ${totals.arrived}/${totals.people} personnes arrivées`;
+  if(!list.length){box.className='jourjEmpty';box.textContent='Aucune réservation dans cette vue.';return;}
+  box.className='';box.innerHTML='';
+  list.forEach(r=>{
+    const x=getJourJState(r);
+    let seats=[];
+    if(Array.isArray(r.sieges))seats=r.sieges;
+    else if(typeof r.sieges==='string'&&r.sieges.trim()){try{const p=JSON.parse(r.sieges);if(Array.isArray(p))seats=p;}catch(_){seats=r.sieges.split(',').map(v=>v.trim()).filter(Boolean);}}
+    const row=document.createElement('div');row.className='jourjListRow';
+    const top=document.createElement('div');top.className='jourjListTop';
+    const left=document.createElement('div');
+    const name=document.createElement('div');name.className='jourjListName';name.textContent=((r.prenom||'')+' '+(r.nom||'')).trim()||'CLIENT';
+    const place=document.createElement('div');place.className='jourjListPlace';place.textContent='TABLE '+(r.numero_table??'—')+(seats.length?' • '+seats.join(' · '):'');
+    left.append(name,place);
+    const prog=document.createElement('div');prog.className='jourjListProgress '+x.state;prog.textContent=x.na+' / '+x.nb;
+    top.append(left,prog);row.append(top);
+    if(r.telephone){const tel=document.createElement('div');tel.className='jourjPhone';tel.textContent='📞 '+r.telephone;row.append(tel);}
+    const noteWrap=document.createElement('div'); noteWrap.style.marginTop='8px';
+    const noteInput=document.createElement('input'); noteInput.type='text'; noteInput.value=r.note_interne||''; noteInput.placeholder='📝 Note interne (Admin uniquement)'; noteInput.style.width='100%'; noteInput.style.boxSizing='border-box'; noteInput.style.padding='9px 10px'; noteInput.style.borderRadius='10px'; noteInput.style.border='1px solid #d7dde5';
+    const noteBtn=document.createElement('button'); noteBtn.type='button'; noteBtn.className='btn'; noteBtn.style.marginTop='6px'; noteBtn.textContent='💾 ENREGISTRER LA NOTE';
+    noteBtn.onclick=()=>saveInternalNote(r.id,noteInput.value);
+    noteWrap.append(noteInput,noteBtn); row.append(noteWrap);
+    box.append(row);
+  });
+}
+
+async function saveInternalNote(id, note){
+  if(!adminUnlocked || !adminAccessToken){ alert('Session Admin absente. Reconnectez-vous.'); return; }
+  try{
+    const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/admin_set_bingo_note',{
+      method:'POST',
+      headers:authHeaders({'Accept':'application/json','Content-Type':'application/json'}),
+      body:JSON.stringify({p_reservation_id:Number(id),p_note:String(note||'').trim()})
+    });
+    const raw=await res.text();
+    let data=null; try{data=raw?JSON.parse(raw):null;}catch(_){data=raw;}
+    if(!res.ok) throw new Error((data&&data.message)||('Enregistrement impossible ('+res.status+')'));
+    const r=adminReservationsCache.find(x=>Number(x.id)===Number(id)); if(r) r.note_interne=String(note||'').trim();
+    alert('✓ Note interne enregistrée');
+  }catch(e){ alert(e.message||'Enregistrement impossible.'); }
+}
+function exportJourJListingCSV(){
+  try{
+    const list=[...adminReservationsCache].sort((a,b)=>Number(a.numero_table||0)-Number(b.numero_table||0)||String(a.nom||'').localeCompare(String(b.nom||''),'fr'));
+    if(!list.length){ alert('Aucune réservation à exporter.'); return; }
+    const rows=[['Table','Nom','Prénom','Chaises','Personnes','Arrivées','État','Téléphone','Note interne']];
+    list.forEach(r=>{
+      const x=getJourJState(r);
+      let seats='';
+      if(Array.isArray(r.sieges)) seats=r.sieges.join(' · ');
+      else seats=String(r.sieges||'');
+      const state=x.state==='complete'?'GROUPE COMPLET':x.state==='partial'?'ARRIVÉE PARTIELLE':'À VENIR';
+      rows.push([r.numero_table||'',r.nom||'',r.prenom||'',seats,x.nb,x.na,state,r.telephone||'',r.note_interne||'']);
+    });
+    const csv='\ufeff'+rows.map(row=>row.map(csvCell).join(';')).join('\r\n');
+    const d=new Date();
+    const date=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const filename='listing_jour_j_'+date+'.csv';
+
+    // Méthode principale : téléchargement Blob
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=filename;
+    a.style.position='fixed';
+    a.style.left='-9999px';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(()=>{try{a.remove();URL.revokeObjectURL(url);}catch(_){}},3000);
+
+    // Retour visible : si le navigateur bloque le téléchargement, l'utilisateur le saura.
+    const msg=document.getElementById('jourJListingSummary');
+    if(msg) msg.textContent='✓ Export demandé : '+filename+' — vérifiez le dossier Téléchargements.';
+  }catch(e){
+    console.error('Export listing Jour J',e);
+    alert('Export impossible : '+(e && e.message ? e.message : 'erreur inconnue'));
+  }
+}
+function printJourJListing(){
+  if(!adminUnlocked) return;
+  const list=[...adminReservationsCache].sort((a,b)=>Number(a.numero_table||0)-Number(b.numero_table||0)||String(a.nom||'').localeCompare(String(b.nom||''),'fr'));
+  const w=window.open('','_blank'); if(!w){alert('Autorisez les fenêtres contextuelles pour imprimer le listing.');return;}
+  const rows=list.map(r=>{const x=getJourJState(r); const seats=Array.isArray(r.sieges)?r.sieges.join(' · '):(r.sieges||''); const state=x.state==='complete'?'GROUPE COMPLET':x.state==='partial'?'ARRIVÉE PARTIELLE':'À VENIR'; return `<tr><td><b>${r.numero_table||''}</b></td><td>${(r.prenom||'')+' '+(r.nom||'')}</td><td>${seats}</td><td>${x.na}/${x.nb}</td><td>${state}</td><td>${r.note_interne||''}</td></tr>`;}).join('');
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Listing Jour J</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#172033}h1{margin:0 0 4px}p{color:#666}table{width:100%;border-collapse:collapse;margin-top:18px}th,td{border:1px solid #ccc;padding:8px;text-align:left}th{background:#f0f3f7}@media print{button{display:none}}</style></head><body><h1>Listing Jour J</h1><p>Réservations • tables • chaises • arrivées</p><table><thead><tr><th>Table</th><th>Client</th><th>Chaises</th><th>Arrivées</th><th>État</th><th>Note interne</th></tr></thead><tbody>${rows}</tbody></table><script>window.onload=()=>window.print()<\/script></body></html>`); w.document.close();
+}
+
+function filterAdminReservations(){
+  const input=document.getElementById('adminSearch');
+  const q=normalizeAdminSearch(input ? input.value : '');
+  if(!q){
+    renderAdminReservations(adminReservationsCache);
+    return;
+  }
+
+  const filtered=adminReservationsCache.filter(r=>{
+    const haystack=normalizeAdminSearch([
+      r.nom,
+      r.prenom,
+      r.telephone,
+      r.code_reservation,
+      r.numero_table
+    ].join(' '));
+    return haystack.includes(q);
+  });
+
+  renderAdminReservations(filtered);
+}
+
+function openTableModal(tableNumber){
+  const modal=document.getElementById('tableModal');
+  const title=document.getElementById('tableModalTitle');
+  const body=document.getElementById('tableModalBody');
+  if(!modal||!title||!body) return;
+
+  const key=String(tableNumber);
+  const list=adminReservationsCache.filter(r=>String(r.numero_table)===key);
+  title.textContent='Table '+key+' — '+list.reduce((n,r)=>n+Number(r.nombre_personnes||0),0)+' personne'+(list.reduce((n,r)=>n+Number(r.nombre_personnes||0),0)>1?'s':'');
+  body.innerHTML='';
+
+  if(!list.length){
+    body.innerHTML='<div class="adminempty">Aucune réservation active sur cette table.</div>';
+  }else{
+    list.forEach(r=>{
+      const d=document.createElement('div'); d.className='tableperson';
+      const name=document.createElement('div'); name.innerHTML='<b></b>';
+      name.querySelector('b').textContent=((r.prenom||'')+' '+(r.nom||'Sans nom')).trim();
+      const detail=document.createElement('div'); detail.className='admindetail';
+      detail.textContent=Number(r.nombre_personnes||0)+' personne'+(Number(r.nombre_personnes||0)>1?'s':'')+
+        (Array.isArray(r.sieges)&&r.sieges.length?' • Chaises : '+r.sieges.join(', '):'');
+      d.append(name,detail);
+
+      if(r.telephone){
+        const tel=document.createElement('div'); tel.className='admindetail';
+        tel.textContent='📞 '+r.telephone; d.append(tel);
+      }
+      if(r.code_reservation){
+        const code=document.createElement('div'); code.className='admindetail';
+        code.textContent='🔑 Code : '+r.code_reservation; d.append(code);
+      }
+      if(r.commentaire){
+        const cm=document.createElement('div'); cm.className='admindetail';
+        cm.textContent='📝 '+r.commentaire; d.append(cm);
+      }
+      body.append(d);
+    });
+  }
+  modal.classList.add('show');
+}
+
+function closeTableModal(){
+  const modal=document.getElementById('tableModal');
+  if(modal) modal.classList.remove('show');
+}
+
+async function loadAdminReservations(){
+  loadBingoSettings();
+  if(!adminUnlocked) return;
+  const box=document.getElementById('adminList');
+  box.innerHTML='<div class="adminempty">Chargement…</div>';
+  try{
+    const res=await fetch(endpoint('event_id=eq.'+encodeURIComponent(activeEventId)+'&select=id,nom,prenom,telephone,nombre_personnes,numero_table,statut,commentaire,code_reservation,sieges,arrive,arrive_at,nombre_arrives,note_interne&order=numero_table.asc'),{headers:authHeaders()});
+    if(res.status===401 || res.status===403){
+      setAdminSession('',''); showAdminState();
+      throw new Error('Session administrateur expirée. Reconnectez-vous.');
+    }
+    if(!res.ok) throw new Error('Lecture admin impossible ('+res.status+')');
+    const data=await res.json();
+    adminReservationsCache=data.filter(r=>String(r.statut||'confirmee').toLowerCase()!=='annulee');
+
+    const search=document.getElementById('adminSearch');
+    if(search) search.value='';
+
+    renderAdminReservations(adminReservationsCache);
+    updateEnhancedDashboard();
+    renderJourJ();
+    renderJourJListing();
+    renderJourJLivePlan();
+  }catch(e){
+    adminReservationsCache=[];
+    const count=document.getElementById('adminSearchCount');
+    if(count) count.textContent='';
+    box.innerHTML='<div class="adminempty">'+e.message+'</div>';
+  }
+}
+
+function csvCell(v){
+  const t=String(v ?? '').replace(/\r?\n/g,' ').replace(/"/g,'""');
+  return '"'+t+'"';
+}
+function formatDateFR(v){
+  if(!v) return '';
+  try{
+    return new Intl.DateTimeFormat('fr-FR',{dateStyle:'short',timeStyle:'short'}).format(new Date(v));
+  }catch(e){ return v; }
+}
+async function exportReservationsCSV(){
+  if(!adminUnlocked) return;
+  try{
+    const q='event_id=eq.'+encodeURIComponent(activeEventId)+'&select=created_at,nom,prenom,telephone,nombre_personnes,numero_table,statut,commentaire,code_reservation&order=numero_table.asc';
+    const res=await fetch(endpoint(q),{headers:authHeaders()});
+    if(!res.ok) throw new Error('Extraction impossible ('+res.status+')');
+    const data=await res.json();
+    const active=data.filter(r=>String(r.statut||'confirmee').toLowerCase()!=='annulee');
+    if(!active.length) return alert('Aucune réservation active à exporter.');
+    const headersCsv=['Nom','Prénom','Téléphone','Nombre de personnes','Table','Demande particulière','Code réservation','Statut','Date / heure d’inscription'];
+    const lines=[headersCsv.map(csvCell).join(';')];
+    active.forEach(r=>{
+      lines.push([
+        r.nom||'',r.prenom||'',r.telephone||'',r.nombre_personnes||'',r.numero_table||'',
+        r.commentaire||'',r.code_reservation||'',r.statut||'confirmee',formatDateFR(r.created_at)
+      ].map(csvCell).join(';'));
+    });
+    const blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
+    const a=document.createElement('a');
+    const d=new Date();
+    const date=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    a.href=URL.createObjectURL(blob);
+    a.download='reservations_bingo_'+date+'.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  }catch(e){ alert(e.message); }
+}
+
+async function cancelReservation(id,nom,table){
+  if(!adminUnlocked) return;
+  if(!confirm('Annuler la réservation de '+nom+' à la table '+table+' ?')) return;
+  try{
+    const res=await fetch(endpoint('id=eq.'+encodeURIComponent(id)),{
+      method:'PATCH', headers:authHeaders({'Prefer':'return=minimal'}), body:JSON.stringify({statut:'annulee'})
+    });
+    if(!res.ok){ const t=await res.text(); throw new Error('Annulation impossible ('+res.status+'): '+t.slice(0,120)); }
+    await loadReservations(); await loadAdminReservations();
+    alert('Réservation annulée. Les places sont de nouveau disponibles.');
+  }catch(e){ alert(e.message); }
+}
+
+
+function parseRecoverySession(){
+  const hashParams=new URLSearchParams(location.hash.replace(/^#/,''));
+  const type=hashParams.get('type');
+  const accessToken=hashParams.get('access_token');
+  const refreshToken=hashParams.get('refresh_token')||'';
+  if(type==='recovery' && accessToken){
+    sessionStorage.setItem('bingo_recovery_access_token',accessToken);
+    sessionStorage.setItem('bingo_recovery_refresh_token',refreshToken);
+    document.getElementById('recoveryOverlay').classList.add('show');
+    history.replaceState(null,'',location.pathname+location.search);
+    return true;
+  }
+  return false;
+}
+
+async function saveRecoveryPassword(){
+  const p1=document.getElementById('recoveryPassword1').value||'';
+  const p2=document.getElementById('recoveryPassword2').value||'';
+  const msg=document.getElementById('recoveryMessage');
+  const token=sessionStorage.getItem('bingo_recovery_access_token')||'';
+  if(!token){ msg.textContent='Le lien de récupération n’est plus valide. Demandez un nouveau lien.'; return; }
+  if(p1.length<12){ msg.textContent='Choisissez un mot de passe d’au moins 12 caractères.'; return; }
+  if(p1!==p2){ msg.textContent='Les deux mots de passe ne correspondent pas.'; return; }
+  msg.textContent='Enregistrement…';
+  try{
+    const res=await fetch(SUPABASE_URL+'/auth/v1/user',{
+      method:'PUT',
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
+      body:JSON.stringify({password:p1})
+    });
+    const data=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.msg||data.message||'Impossible de modifier le mot de passe');
+    sessionStorage.removeItem('bingo_recovery_access_token');
+    sessionStorage.removeItem('bingo_recovery_refresh_token');
+    document.getElementById('recoveryPassword1').value='';
+    document.getElementById('recoveryPassword2').value='';
+    msg.textContent='Mot de passe enregistré ✅';
+    setTimeout(()=>{
+      document.getElementById('recoveryOverlay').classList.remove('show');
+      go('admin',true);
+      showAdminState();
+    },900);
+  }catch(e){ msg.textContent='Erreur : '+e.message; }
+}
+
+function renderAdmin() {
+  const activeRows=rows.filter(r=>String(r.statut||'confirmee').toLowerCase()!=='annulee');
+  const pers=activeRows.reduce((s,r)=>s+Number(r.nombre_personnes||0),0);
+  const totalCap=Object.values(caps).reduce((a,c)=>a+c,0);
+  document.getElementById("nbRes").textContent=activeRows.length;
+  document.getElementById("nbPers").textContent=pers;
+  document.getElementById("nbFree").textContent=Math.max(0,totalCap-pers);
+}
+
+function go(id,fromAdmin=false) {
+  if(id==='admin' && !fromAdmin) return openAdmin();
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  document.querySelectorAll(".navbtn").forEach(b=>b.classList.toggle("active",b.dataset.screen===id));
+  if(id==='plan' || id==='admin') loadReservations();
+  if(id==='admin') showAdminState();
+}
+parseRecoverySession();
+showAdminState();
+loadReservations();
+setInterval(loadReservations,30000);
+
+function localDateTimeValue(iso){
+  if(!iso)return '';
+  const d=new Date(iso),p=n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+async function loadBingoSettings(){
+  if(!adminAccessToken)return;
+  const msg=document.getElementById('bingoSettingsMessage');
+  try{
+    const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/admin_get_bingo_management',{method:'POST',headers:authHeaders(),body:'{}'});
+    if(!res.ok)throw new Error(await res.text());
+    const d=await res.json();
+    const events=Array.isArray(d?.events)?d.events:[];
+    const e=events.find(x=>x.actif) || events.find(x=>Number(x.id)===Number(activeEventId));
+    if(!e){msg.textContent='Aucun Bingo actif.';return;}
+    activeEventId=Number(e.id); activeEventData=e;
+    document.getElementById('bingoOpensAt').value=localDateTimeValue(e.opens_at);
+    document.getElementById('bingoClosesAt').value=localDateTimeValue(e.closes_at);
+    const open=!!(e.opens_at&&e.closes_at&&Date.now()>=new Date(e.opens_at).getTime()&&Date.now()<=new Date(e.closes_at).getTime());
+    msg.textContent=(open?'🟢 Réservations actuellement ouvertes':'🔴 Réservations actuellement fermées')+' pour '+(e.nom||'ce Bingo')+'.';
+  }catch(e){msg.textContent='Impossible de charger les dates.';}
+}
+async function saveBingoSettings(){
+  const msg=document.getElementById('bingoSettingsMessage');
+  const a=document.getElementById('bingoOpensAt').value,b=document.getElementById('bingoClosesAt').value;
+  if(!a||!b){msg.textContent='Indiquez les deux dates.';return;}
+  const opens=new Date(a),closes=new Date(b);
+  if(closes<=opens){msg.textContent='La fermeture doit être après l’ouverture.';return;}
+  if(!activeEventId||!activeEventData){await loadBingoSettings();}
+  if(!activeEventId||!activeEventData){msg.textContent='Aucun Bingo actif.';return;}
+  msg.textContent='Enregistrement...';
+  try{
+    const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/admin_update_bingo_event',{
+      method:'POST',headers:authHeaders(),
+      body:JSON.stringify({
+        p_event_id:activeEventId,
+        p_nom:activeEventData.nom,
+        p_date_bingo:activeEventData.date_bingo,
+        p_plan_id:activeEventData.plan_id,
+        p_opens_at:opens.toISOString(),
+        p_closes_at:closes.toISOString()
+      })
+    });
+    if(!res.ok)throw new Error(await res.text());
+    const ok=await res.json();
+    msg.textContent=ok===true?'✅ Dates enregistrées pour ce Bingo.':'Enregistrement refusé.';
+    if(ok===true){await loadBingoSettings();await loadCloudManagement();}
+  }catch(e){msg.textContent='Erreur : '+e.message;}
+}
+
+
+// === ÉTAPE 1 : gestionnaire de plan Admin, brouillon local ===
+let planDraftTables=[];
+let selectedPlanTableId=null;
+let planDraftBackground='';
+const PLAN_DRAFT_KEY='bingo_plan_draft_v1';
+
+function planDraftMessage(t){ const e=document.getElementById('planEditorMessage'); if(e)e.textContent=t; }
+function planUid(){ return 't_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7); }
+function defaultShapeForCapacity(c){ c=Number(c||0); return c<=10?'round':(c<=12?'small':(c<=20?'medium':'long')); }
+
+function loadCurrentPlanAsDraft(){
+  if(!adminUnlocked) return;
+  if(planDraftTables.length && !confirm('Remplacer le brouillon actuel par une copie du plan utilisé aujourd’hui ?')) return;
+  planDraftTables=[];
+  document.querySelectorAll('.room .table[data-id]').forEach(el=>{
+    const id=Number(el.dataset.id);
+    planDraftTables.push({uid:planUid(),number:id,capacity:Number(caps[id]||10),shape:['round','medium','small','long'].find(c=>el.classList.contains(c))||defaultShapeForCapacity(caps[id]),x:parseFloat(el.style.left)||50,y:parseFloat(el.style.top)||50});
+  });
+  selectedPlanTableId=null;
+  renderPlanEditor();
+  planDraftMessage('Copie du plan actuel chargée. Vous pouvez la modifier sans toucher au plan client.');
+}
+
+function addPlanTable(){
+  if(!adminUnlocked) return;
+  const nums=planDraftTables.map(t=>Number(t.number)||0);
+  let n=1; while(nums.includes(n)) n++;
+  const t={uid:planUid(),number:n,capacity:10,shape:'round',x:50,y:50};
+  planDraftTables.push(t); selectedPlanTableId=t.uid; renderPlanEditor(); syncPlanEditorControls();
+  planDraftMessage('Nouvelle table ajoutée au brouillon.');
+}
+
+function renderPlanEditor(){
+  const canvas=document.getElementById('planEditorCanvas'); if(!canvas)return;
+  canvas.style.backgroundImage=planDraftBackground?`url(${planDraftBackground})`:'';
+  canvas.innerHTML='';
+  planDraftTables.forEach(t=>{
+    const el=document.createElement('div');
+    el.className='planEditorTable '+(t.shape||'round')+(t.uid===selectedPlanTableId?' active':'');
+    el.style.left=t.x+'%'; el.style.top=t.y+'%'; el.dataset.uid=t.uid;
+    el.innerHTML='<b>'+escapeHtml(String(t.number))+'</b><span>'+Number(t.capacity||0)+' places</span>';
+    el.addEventListener('pointerdown',startPlanTableDrag);
+    el.addEventListener('click',()=>{selectedPlanTableId=t.uid;renderPlanEditor();syncPlanEditorControls();});
+    canvas.appendChild(el);
+  });
+  syncPlanEditorControls();
+}
+
+let planDrag=null;
+function startPlanTableDrag(e){
+  if(!adminUnlocked)return;
+  e.preventDefault();
+  const uid=e.currentTarget.dataset.uid; selectedPlanTableId=uid;
+  planDrag={uid,el:e.currentTarget};
+  document.querySelectorAll('#planEditorCanvas .planEditorTable').forEach(x=>x.classList.remove('active'));
+  e.currentTarget.classList.add('active');
+  e.currentTarget.setPointerCapture?.(e.pointerId);
+  e.currentTarget.addEventListener('pointermove',movePlanTableDrag);
+  e.currentTarget.addEventListener('pointerup',endPlanTableDrag,{once:true});
+  e.currentTarget.addEventListener('pointercancel',endPlanTableDrag,{once:true});
+  syncPlanEditorControls();
+}
+function movePlanTableDrag(e){
+  if(!planDrag)return;
+  const canvas=document.getElementById('planEditorCanvas'),r=canvas.getBoundingClientRect();
+  const t=planDraftTables.find(x=>x.uid===planDrag.uid); if(!t)return;
+  t.x=Math.max(2,Math.min(98,((e.clientX-r.left)/r.width)*100));
+  t.y=Math.max(2,Math.min(98,((e.clientY-r.top)/r.height)*100));
+  const el=canvas.querySelector('[data-uid="'+CSS.escape(t.uid)+'"]'); if(el){el.style.left=t.x+'%';el.style.top=t.y+'%';}
+  syncPlanEditorControls();
+}
+function endPlanTableDrag(e){
+  if(planDrag?.el) planDrag.el.removeEventListener('pointermove',movePlanTableDrag);
+  planDrag=null; planDraftMessage('Position modifiée. Pensez à enregistrer le brouillon.');
+}
+function syncPlanEditorControls(){
+  const box=document.getElementById('planEditorControls'); if(!box)return;
+  const t=planDraftTables.find(x=>x.uid===selectedPlanTableId);
+  box.style.display=t?'block':'none'; if(!t)return;
+  document.getElementById('planTableNumber').value=t.number;
+  document.getElementById('planTableCapacity').value=t.capacity;
+  document.getElementById('planTableShape').value=t.shape;
+  document.getElementById('planTablePosition').value=Math.round(t.x)+'% / '+Math.round(t.y)+'%';
+}
+function updateSelectedPlanTable(){
+  const t=planDraftTables.find(x=>x.uid===selectedPlanTableId); if(!t)return;
+  const n=Math.max(1,parseInt(document.getElementById('planTableNumber').value||'1',10));
+  if(planDraftTables.some(x=>x.uid!==t.uid && Number(x.number)===n)){ alert('Ce numéro de table existe déjà dans le brouillon.'); syncPlanEditorControls(); return; }
+  t.number=n; t.capacity=Math.max(1,parseInt(document.getElementById('planTableCapacity').value||'1',10)); t.shape=document.getElementById('planTableShape').value;
+  renderPlanEditor(); planDraftMessage('Table modifiée. Pensez à enregistrer le brouillon.');
+}
+function deleteSelectedPlanTable(){
+  const t=planDraftTables.find(x=>x.uid===selectedPlanTableId); if(!t)return;
+  if(!confirm('Supprimer la table '+t.number+' du brouillon ?'))return;
+  planDraftTables=planDraftTables.filter(x=>x.uid!==t.uid); selectedPlanTableId=null; renderPlanEditor(); planDraftMessage('Table supprimée du brouillon.');
+}
+function importPlanBackground(ev){
+  if(!adminUnlocked)return;
+  const f=ev.target.files?.[0]; if(!f)return;
+  if(f.size>3*1024*1024){ev.target.value='';return alert('Choisissez une image de moins de 3 Mo pour le brouillon.');}
+  const reader=new FileReader(); reader.onload=()=>{planDraftBackground=String(reader.result||'');renderPlanEditor();planDraftMessage('Fond de plan importé. Pensez à enregistrer le brouillon.');}; reader.readAsDataURL(f);
+}
+function savePlanDraft(){
+  if(!adminUnlocked)return;
+  try{localStorage.setItem(PLAN_DRAFT_KEY,JSON.stringify({version:1,tables:planDraftTables,background:planDraftBackground,savedAt:new Date().toISOString()}));planDraftMessage('✅ Brouillon enregistré sur cet appareil. Le plan public n’a pas été modifié.');}
+  catch(e){alert('Le brouillon est trop volumineux pour être enregistré sur cet appareil. Essayez une image de fond plus légère.');}
+}
+function restorePlanDraft(){
+  try{const raw=localStorage.getItem(PLAN_DRAFT_KEY);if(!raw){renderPlanEditor();return;}const d=JSON.parse(raw);planDraftTables=Array.isArray(d.tables)?d.tables:[];planDraftBackground=d.background||'';selectedPlanTableId=null;renderPlanEditor();planDraftMessage('Brouillon enregistré précédemment chargé.');}catch(e){renderPlanEditor();}
+}
+function clearPlanDraft(){
+  if(!confirm('Effacer uniquement le brouillon de plan enregistré sur cet appareil ?'))return;
+  localStorage.removeItem(PLAN_DRAFT_KEY);planDraftTables=[];planDraftBackground='';selectedPlanTableId=null;renderPlanEditor();planDraftMessage('Brouillon effacé. Le plan client est inchangé.');
+}
+
+// === ÉTAPE 2 : plusieurs plans nommés + préparation d'un futur Bingo ===
+const PLAN_LIBRARY_KEY='bingo_plan_library_v2';
+const EVENT_DRAFT_KEY='bingo_event_draft_v2';
+function readPlanLibrary(){try{return JSON.parse(localStorage.getItem(PLAN_LIBRARY_KEY)||'[]')||[];}catch(e){return [];}}
+function writePlanLibrary(items){localStorage.setItem(PLAN_LIBRARY_KEY,JSON.stringify(items));}
+function planLibraryId(){return 'p_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7);}
+function saveNamedPlan(){
+  if(!adminUnlocked)return;
+  const name=(document.getElementById('planLibraryName')?.value||'').trim();
+  if(!name)return alert('Donnez un nom à ce plan.');
+  if(!planDraftTables.length)return alert('Chargez ou créez d’abord un plan dans l’éditeur.');
+  let items=readPlanLibrary();
+  const existing=items.find(x=>String(x.name).toLowerCase()===name.toLowerCase());
+  const payload={id:existing?.id||planLibraryId(),name,tables:JSON.parse(JSON.stringify(planDraftTables)),background:planDraftBackground||'',updatedAt:new Date().toISOString()};
+  if(existing){if(!confirm('Un plan porte déjà ce nom. Le remplacer ?'))return;items=items.map(x=>x.id===existing.id?payload:x);}else items.push(payload);
+  try{writePlanLibrary(items);document.getElementById('planLibraryName').value='';renderPlanLibrary();refreshEventPlanOptions();alert('Plan enregistré dans votre bibliothèque locale.');}
+  catch(e){alert('Enregistrement impossible sur cet appareil. Une image de fond trop lourde peut être en cause.');}
+}
+function loadNamedPlan(id){
+  const p=readPlanLibrary().find(x=>x.id===id);if(!p)return;
+  if(planDraftTables.length&&!confirm('Charger ce plan dans l’éditeur et remplacer le brouillon actuel ?'))return;
+  planDraftTables=JSON.parse(JSON.stringify(p.tables||[]));planDraftBackground=p.background||'';selectedPlanTableId=null;renderPlanEditor();planDraftMessage('Plan « '+p.name+' » chargé dans l’éditeur. Le plan client reste inchangé.');
+}
+function duplicateNamedPlan(id){
+  const items=readPlanLibrary(),p=items.find(x=>x.id===id);if(!p)return;
+  const copy=JSON.parse(JSON.stringify(p));copy.id=planLibraryId();copy.name=p.name+' — copie';copy.updatedAt=new Date().toISOString();items.push(copy);
+  try{writePlanLibrary(items);renderPlanLibrary();refreshEventPlanOptions();}catch(e){alert('Copie impossible sur cet appareil.');}
+}
+function deleteNamedPlan(id){
+  const items=readPlanLibrary(),p=items.find(x=>x.id===id);if(!p)return;
+  if(!confirm('Supprimer le plan « '+p.name+' » de la bibliothèque locale ?'))return;
+  writePlanLibrary(items.filter(x=>x.id!==id));renderPlanLibrary();refreshEventPlanOptions();
+}
+function renderPlanLibrary(){
+  const box=document.getElementById('planLibraryList');if(!box)return;
+  const items=readPlanLibrary();
+  if(!items.length){box.innerHTML='<div class="adminempty">Aucun plan enregistré pour le moment.</div>';refreshEventPlanOptions();return;}
+  box.innerHTML=items.map(p=>`<div class="planSavedItem"><div class="planSavedTop"><div><div class="planSavedName">${escapeHtml(p.name)}</div><div class="planSavedMeta">${(p.tables||[]).length} table(s) · ${new Date(p.updatedAt).toLocaleString('fr-FR')}</div></div></div><div class="planSavedActions"><button class="miniPrimary" onclick="loadNamedPlan('${p.id}')">OUVRIR</button><button class="miniSecondary" onclick="duplicateNamedPlan('${p.id}')">COPIER</button><button class="miniDanger" onclick="deleteNamedPlan('${p.id}')">SUPPRIMER</button></div></div>`).join('');
+  refreshEventPlanOptions();
+  if(adminUnlocked) setTimeout(loadCloudManagement,0);
+}
+function refreshEventPlanOptions(){
+  const sel=document.getElementById('eventDraftPlan');if(!sel)return;
+  const old=sel.value,items=readPlanLibrary();
+  sel.innerHTML='<option value="">— Choisir un plan enregistré —</option>'+items.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  if(items.some(x=>x.id===old))sel.value=old;
+}
+function saveEventDraft(){
+  if(!adminUnlocked)return;
+  const name=(document.getElementById('eventDraftName')?.value||'').trim(),date=document.getElementById('eventDraftDate')?.value||'',planId=document.getElementById('eventDraftPlan')?.value||'';
+  if(!name||!date||!planId)return alert('Indiquez le nom du Bingo, sa date et le plan de salle.');
+  const p=readPlanLibrary().find(x=>x.id===planId);if(!p)return alert('Le plan sélectionné n’existe plus.');
+  const d={name,date,planId,planName:p.name,savedAt:new Date().toISOString()};localStorage.setItem(EVENT_DRAFT_KEY,JSON.stringify(d));
+  const m=document.getElementById('eventDraftMessage');if(m)m.textContent='✅ Préparation enregistrée : '+name+' · '+date.split('-').reverse().join('/')+' · '+p.name+'. Aucun impact sur le Bingo actuellement en ligne.';
+}
+function restoreEventDraft(){
+  refreshEventPlanOptions();let d=null;try{d=JSON.parse(localStorage.getItem(EVENT_DRAFT_KEY)||'null');}catch(e){}
+  if(!d)return;
+  const n=document.getElementById('eventDraftName'),dt=document.getElementById('eventDraftDate'),sel=document.getElementById('eventDraftPlan'),m=document.getElementById('eventDraftMessage');
+  if(n)n.value=d.name||'';if(dt)dt.value=d.date||'';if(sel&&[...sel.options].some(o=>o.value===d.planId))sel.value=d.planId;
+  if(m)m.textContent='Préparation chargée : '+(d.name||'Bingo')+' · '+(d.planName||'plan enregistré')+'.';
+}
+
+
+
+// === ÉTAPE 5 : synchronisation multi-Bingo avec Supabase ===
+let cloudPlans=[];
+let cloudEvents=[];
+function cloudMsg(id,text,err=false){const e=document.getElementById(id);if(e){e.textContent=text;e.style.color=err?'#9b1c1c':'#166534';}}
+async function saveCurrentPlanToSupabase(){
+  if(!adminUnlocked)return alert('Connectez-vous à l’espace administrateur.');
+  const name=(document.getElementById('cloudPlanName')?.value||'').trim();
+  if(!name)return alert('Donnez un nom au plan.');
+  if(!planDraftTables.length)return alert('Chargez d’abord un plan dans l’éditeur.');
+  if(planDraftBackground && planDraftBackground.startsWith('data:')) return alert("Pour cette étape, le fond image reste local. Le plan et les tables peuvent être enregistrés dans Supabase sans l’image.");
+  cloudMsg('cloudPlanMessage','Enregistrement en cours…');
+  try{
+    const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/admin_save_bingo_room_plan',{method:'POST',headers:authHeaders(),body:JSON.stringify({p_nom:name,p_largeur:900,p_hauteur:560,p_tables_config:planDraftTables,p_background_url:planDraftBackground||null})});
+    if(!res.ok){const t=await res.text();throw new Error('Enregistrement impossible ('+res.status+') : '+t.slice(0,160));}
+    const id=await res.json();
+    document.getElementById('cloudPlanName').value='';
+    cloudMsg('cloudPlanMessage','✅ Plan enregistré dans Supabase (ID '+id+').');
+    await loadCloudManagement();
+  }catch(e){cloudMsg('cloudPlanMessage',e.message,true);}
+}
+async function createEventInSupabase(){
+  if(!adminUnlocked)return alert('Connectez-vous à l’espace administrateur.');
+  const name=(document.getElementById('cloudEventName')?.value||'').trim();
+  const date=document.getElementById('cloudEventDate')?.value||'';
+  const planId=Number(document.getElementById('cloudEventPlan')?.value||0);
+  const opensValue=document.getElementById('cloudEventOpensAt')?.value||'';
+  const closesValue=document.getElementById('cloudEventClosesAt')?.value||'';
+  if(!name||!date||!planId)return alert('Indiquez le nom du Bingo, sa date et son plan de salle.');
+  if((opensValue&&!closesValue)||(!opensValue&&closesValue))return alert('Indiquez à la fois l’ouverture et la fermeture des réservations.');
+  if(opensValue&&new Date(closesValue)<=new Date(opensValue))return alert('La fermeture doit être après l’ouverture.');
+  cloudMsg('cloudEventMessage','Création en cours…');
+  try{
+    const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/admin_create_bingo_event',{method:'POST',headers:authHeaders(),body:JSON.stringify({p_nom:name,p_date_bingo:date,p_plan_id:planId,p_opens_at:opensValue?new Date(opensValue).toISOString():null,p_closes_at:closesValue?new Date(closesValue).toISOString():null})});
+    if(!res.ok){const t=await res.text();throw new Error('Création impossible ('+res.status+') : '+t.slice(0,160));}
+    const id=await res.json();
+    cloudMsg('cloudEventMessage','✅ Bingo enregistré dans Supabase (ID '+id+').');
+    await loadCloudManagement();
+  }catch(e){cloudMsg('cloudEventMessage',e.message,true);}
+}
+async function activateCloudEvent(id){
+  if(!adminUnlocked){
+    cloudMsg('cloudEventMessage','Session administrateur absente. Reconnectez-vous.',true);
+    return;
+  }
+  cloudMsg('cloudEventMessage','Activation en cours…');
+  try{
+    const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/admin_activate_bingo_event',{
+      method:'POST',
+      headers:authHeaders(),
+      body:JSON.stringify({p_event_id:Number(id)})
+    });
+    const raw=await res.text();
+    if(!res.ok) throw new Error('Activation impossible ('+res.status+') : '+raw.slice(0,220));
+    let result=null;
+    try{ result=raw?JSON.parse(raw):null; }catch(_e){}
+    if(result!==true) throw new Error('Supabase n’a pas confirmé l’activation.');
+    localStorage.removeItem(ACTIVE_EVENT_TEST_KEY);
+    cloudMsg('cloudEventMessage','✅ Bingo activé dans Supabase.');
+    await loadCloudManagement();
+    await loadActiveBingoFromSupabase();
+  }catch(e){
+    cloudMsg('cloudEventMessage','❌ '+e.message,true);
+  }
+}
+function renderCloudManagement(){
+  const ps=document.getElementById('cloudPlansList'), es=document.getElementById('cloudEventsList'), sel=document.getElementById('cloudEventPlan');
+  if(sel)sel.innerHTML='<option value="">— Choisir un plan Supabase —</option>'+cloudPlans.map(p=>`<option value="${p.id}">${escapeHtml(p.nom||'Plan '+p.id)}</option>`).join('');
+  if(ps)ps.innerHTML=cloudPlans.length?'<div class="small" style="margin-top:10px"><b>Plans enregistrés dans Supabase</b></div>'+cloudPlans.map(p=>`<div class="cloudItem"><b>${escapeHtml(p.nom||'Plan')}</b><div class="cloudMeta">${Array.isArray(p.tables_config)?p.tables_config.length:0} table(s) · ID ${p.id}</div></div>`).join(''):'<div class="adminempty">Aucun plan Supabase.</div>';
+  if(es)es.innerHTML=cloudEvents.length?'<div class="small" style="margin-top:12px"><b>Bingos enregistrés dans Supabase</b></div>'+cloudEvents.map(e=>{const p=cloudPlans.find(x=>Number(x.id)===Number(e.plan_id));return `<div class="cloudItem"><b>${e.actif?'✅ ':''}${escapeHtml(e.nom||'Bingo')}</b><div class="cloudMeta">${escapeHtml(e.date_bingo||'')} · ${escapeHtml(p?.nom||'Sans plan')} · ${e.opens_at&&e.closes_at?'Réservations programmées':'Réservations fermées'}</div><div class="cloudActions">${e.actif?'<button class="cloudSecondary" disabled>ACTIF</button>':`<button class="cloudPrimary" onclick="activateCloudEvent(${e.id})">ACTIVER</button>`}</div></div>`;}).join(''):'<div class="adminempty">Aucun Bingo Supabase.</div>';
+}
+async function loadCloudManagement(){
+  if(!adminUnlocked)return;
+  try{
+    const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/admin_get_bingo_management',{method:'POST',headers:authHeaders(),body:'{}'});
+    if(!res.ok){const t=await res.text();throw new Error('Lecture Supabase impossible ('+res.status+') : '+t.slice(0,150));}
+    const d=await res.json(); cloudPlans=Array.isArray(d?.plans)?d.plans:[]; cloudEvents=Array.isArray(d?.events)?d.events:[]; renderCloudManagement();
+  }catch(e){cloudMsg('cloudPlanMessage',e.message,true);}
+}
+function normalizeCloudTables(cfg){return (Array.isArray(cfg)?cfg:[]).map((t,i)=>({uid:String(t.uid||('cloud_'+i)),number:Number(t.number),capacity:Number(t.capacity)||1,shape:t.shape||'round',x:Number(t.x)||50,y:Number(t.y)||50}));}
+async function loadActiveBingoFromSupabase(){
+  try{
+    const res=await fetch(SUPABASE_URL+'/rest/v1/rpc/get_active_bingo',{method:'POST',headers:headers(),body:'{}'});
+    if(!res.ok)return false;
+    const data=await res.json(), d=Array.isArray(data)?data[0]:data;
+    if(!d||!d.event_id){activeEventId=null;activeEventData=null;return false;}
+    activeEventId=Number(d.event_id);
+    activeEventData=d;
+    const plan={name:d.plan_nom||'Plan',tables:normalizeCloudTables(d.tables_config),background:d.background_url||''};
+    if(plan.tables.length)renderPublicRoomFromPlan(plan);
+    const title=document.getElementById('publicHeroTitle'),txt=document.getElementById('publicHeroText');
+    if(title)title.textContent=d.nom||'Bingo';
+    if(txt)txt.textContent='Réservation pour le '+String(d.date_bingo||'').split('-').reverse().join('/')+' · Choisissez votre table.';
+    selected=null;selectedSeats=[];refresh();
+    return true;
+  }catch(e){return false;}
+}
+
+// === ÉTAPE 3 : activation locale de test, sans modification Supabase ===
+const ACTIVE_EVENT_TEST_KEY='bingo_active_event_test_v3';
+const ORIGINAL_CAPS=JSON.parse(JSON.stringify(caps));
+const ORIGINAL_ROOM_HTML=document.querySelector('.room')?.innerHTML||'';
+function setCapsFromTables(tables){
+  Object.keys(caps).forEach(k=>delete caps[k]);
+  (tables||[]).forEach(t=>{const n=String(Number(t.number));if(Number(t.number)>0)caps[n]=Math.max(1,Number(t.capacity)||1);});
+}
+function renderPublicRoomFromPlan(plan){
+  const room=document.querySelector('.room');if(!room||!plan)return;
+  const bg=plan.background||'';
+  room.style.backgroundImage=bg?`url("${bg.replace(/"/g,'%22')}")`:'';
+  room.innerHTML='<div class="stage">SCÈNE</div>'+(plan.tables||[]).map(t=>{
+    const n=Number(t.number),shape=['long','medium','small','round'].includes(t.shape)?t.shape:'round';
+    const x=Math.max(0,Math.min(100,Number(t.x)||50)),y=Math.max(0,Math.min(100,Number(t.y)||50));
+    return `<button class="table ${shape}" data-id="${n}" style="left:${x}%;top:${y}%;" onclick="chooseTable(${n})"><span class="num">${n}</span><span class="remaining" id="p${n}">...</span></button>`;
+  }).join('');
+  setCapsFromTables(plan.tables||[]);
+}
+function restoreOriginalPublicRoom(){
+  const room=document.querySelector('.room');if(room){room.innerHTML=ORIGINAL_ROOM_HTML;room.style.backgroundImage='';}
+  Object.keys(caps).forEach(k=>delete caps[k]);Object.assign(caps,ORIGINAL_CAPS);
+}
+function applyActiveEventTest(){
+  let d=null;try{d=JSON.parse(localStorage.getItem(ACTIVE_EVENT_TEST_KEY)||'null');}catch(e){}
+  const statusBox=document.getElementById('activeEventStatus');
+  if(!d){restoreOriginalPublicRoom();if(statusBox){statusBox.className='activeEventBox off';statusBox.textContent='Aucun Bingo de test activé sur cet appareil.';}return;}
+  const plan=readPlanLibrary().find(p=>p.id===d.planId);
+  if(!plan){localStorage.removeItem(ACTIVE_EVENT_TEST_KEY);restoreOriginalPublicRoom();return;}
+  renderPublicRoomFromPlan(plan);
+  const title=document.getElementById('publicHeroTitle'),txt=document.getElementById('publicHeroText');
+  if(title)title.textContent=d.name||'Bingo';
+  if(txt)txt.textContent='Réservation pour le '+String(d.date||'').split('-').reverse().join('/')+' · Choisissez votre table.';
+  if(statusBox){statusBox.className='activeEventBox';statusBox.textContent='✅ Test actif sur cet appareil : '+d.name+' · '+String(d.date||'').split('-').reverse().join('/')+' · '+plan.name+'. Aucun changement n’est publié en ligne.';}
+  selected=null;selectedSeats=[];refresh();
+}
+function activateEventLocally(){
+  if(!adminUnlocked)return;
+  const name=(document.getElementById('eventDraftName')?.value||'').trim(),date=document.getElementById('eventDraftDate')?.value||'',planId=document.getElementById('eventDraftPlan')?.value||'';
+  if(!name||!date||!planId)return alert('Indiquez le nom du Bingo, sa date et le plan de salle.');
+  const plan=readPlanLibrary().find(p=>p.id===planId);if(!plan)return alert('Le plan sélectionné n’existe plus.');
+  localStorage.setItem(ACTIVE_EVENT_TEST_KEY,JSON.stringify({name,date,planId,planName:plan.name,activatedAt:new Date().toISOString()}));
+  applyActiveEventTest();alert('Bingo activé uniquement pour le test sur cet appareil. Rien n’est publié sur GitHub.');
+}
+function deactivateEventLocally(){
+  localStorage.removeItem(ACTIVE_EVENT_TEST_KEY);restoreOriginalPublicRoom();
+  const title=document.getElementById('publicHeroTitle'),txt=document.getElementById('publicHeroText');if(title)title.textContent='Bienvenue';if(txt)txt.textContent='Choisissez votre table et profitez pleinement de votre soirée.';
+  selected=null;selectedSeats=[];refresh();applyActiveEventTest();
+}
+setTimeout(async()=>{const cloud=await loadActiveBingoFromSupabase();if(!cloud)applyActiveEventTest();},0);
+
+// ETAPE 5.2 : branchement direct du bouton d'annulation
+document.addEventListener('click', function(ev){
+  const b=ev.target.closest('#cancelReservationBtn');
+  if(!b) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  const m=document.getElementById('cancelReservationMessage');
+  if(m) m.textContent='Demande d’annulation reçue…';
+  cancelMyReservation();
+});
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape') closeTableModal();});
+</script>
+</body></html>
