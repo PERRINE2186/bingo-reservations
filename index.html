@@ -123,6 +123,9 @@ input{width:100%;padding:13px;border:1px solid #ccd6e0;border-radius:12px;font-s
 .jourjListingFilters{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:10px 0}.jourjFilterBtn{border:1px solid #d6dee7;background:#f6f8fa;color:#17324d;border-radius:10px;padding:9px 5px;font-size:11px;font-weight:900;cursor:pointer}.jourjFilterBtn.active{background:#17324d;color:#fff;border-color:#17324d}.jourjListRow{border:1px solid #dbe3eb;border-radius:12px;padding:12px;margin-top:8px;background:#fff}.jourjListTop{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.jourjListName{font-weight:900;color:#17324d;text-transform:uppercase}.jourjListPlace{font-size:13px;font-weight:800;color:#334155;margin-top:4px}.jourjListProgress{font-weight:900;white-space:nowrap}.jourjListProgress.wait{color:#8a5a00}.jourjListProgress.partial{color:#174a73}.jourjListProgress.complete{color:#176b35}.jourjListSummary{font-size:12px;color:#667085;font-weight:700;margin-top:8px}@media(max-width:560px){.jourjListingFilters{grid-template-columns:repeat(2,1fr)}}
 
 .adminQuickGrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}.adminQuickGrid .btn{margin:0}.fillbar{height:10px;background:#edf0f3;border-radius:99px;overflow:hidden;margin-top:8px}.fillbar>div{height:100%;background:#17324d;width:0%}
+
+/* === PLAN LIVE JOUR J === */
+.liveLegend{display:flex;gap:8px;flex-wrap:wrap;font-size:11px;margin:10px 0}.liveLegend span{display:inline-flex;align-items:center;gap:5px}.liveDot{width:11px;height:11px;border-radius:50%;display:inline-block}.livePlanWrap{overflow:auto;border:1px solid #d8e0e8;border-radius:14px;background:#f7f9fb;padding:8px}.liveRoom{position:relative;width:900px;height:560px;background:#fff;border:2px solid #384b5c}.liveStage{position:absolute;left:30%;top:5%;width:20%;height:22%;border:2px solid #596b7a;background:#f8fafc;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900}.liveTable{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid #9ca3af;background:#f3f4f6;color:#475569;box-shadow:0 2px 7px #0002;cursor:pointer;font-weight:900}.liveTable.long{width:44px;height:142px;border-radius:9px}.liveTable.medium{width:47px;height:122px;border-radius:9px}.liveTable.small{width:44px;height:98px;border-radius:9px}.liveTable.round{width:72px;height:72px;border-radius:50%}.liveTable.wait{background:#fff4d6;border-color:#d49b23;color:#7a5200}.liveTable.partial{background:#e8f1fb;border-color:#2f6f9f;color:#174a73}.liveTable.complete{background:#e4f3e8;border-color:#5f9f70;color:#176b35}.liveTable .liveNum{font-size:18px}.liveTable .liveCount{font-size:9px;margin-top:3px}.liveSummary{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:10px 0}.liveStat{background:#f3f6f9;border-radius:11px;padding:9px 5px;text-align:center}.liveStat b{display:block;color:#17324d;font-size:18px}.liveStat span{font-size:9px;color:#667085;font-weight:800}.liveDetailGroup{border:1px solid #e5eaf0;border-radius:11px;padding:10px;margin:8px 0;background:#fbfcfd}.liveDetailGroup b{color:#17324d}.liveDetailState{font-size:11px;font-weight:900;margin-top:5px}@media(max-width:560px){.liveSummary{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
@@ -275,6 +278,25 @@ input{width:100%;padding:13px;border:1px solid #ccd6e0;border-radius:12px;font-s
         <div class="jourjCounters"><div class="jourjCounter"><b id="jourJExpected">0</b><span>ATTENDUES</span></div><div class="jourjCounter"><b id="jourJArrived">0</b><span>ARRIVÉES</span></div><div class="jourjCounter"><b id="jourJRemaining">0</b><span>RESTANTES</span></div></div>
         <div id="jourJActionStatus" style="display:none;margin:10px 0;padding:10px 12px;border-radius:10px;font-weight:800"></div>
         <div id="jourJResults" class="jourjEmpty">Saisissez un nom, un téléphone ou un code de réservation.</div>
+      </div>
+
+
+      <div class="card" id="jourJLiveCard">
+        <b style="color:#17324d">🗺️ Plan LIVE Jour J</b>
+        <p class="small">Suivez les arrivées table par table. Touchez une table pour afficher les groupes et les chaises.</p>
+        <div class="liveSummary">
+          <div class="liveStat"><b id="liveExpected">0</b><span>ATTENDUS</span></div>
+          <div class="liveStat"><b id="liveArrived">0</b><span>ARRIVÉS</span></div>
+          <div class="liveStat"><b id="liveRemaining">0</b><span>RESTANTS</span></div>
+          <div class="liveStat"><b id="liveRate">0%</b><span>PRÉSENCE</span></div>
+        </div>
+        <div class="liveLegend">
+          <span><i class="liveDot" style="background:#f3f4f6"></i>Sans réservation</span>
+          <span><i class="liveDot" style="background:#fff4d6"></i>À venir</span>
+          <span><i class="liveDot" style="background:#e8f1fb"></i>Partielle</span>
+          <span><i class="liveDot" style="background:#e4f3e8"></i>Complète</span>
+        </div>
+        <div class="livePlanWrap"><div id="jourJLivePlan" class="liveRoom"></div></div>
       </div>
 
       <div class="card" id="jourJListingCard">
@@ -1208,6 +1230,7 @@ async function setJourJArrivals(id, nombreArrives){
     show(target===max && max>0?'✓ Groupe complet':('✓ '+target+' / '+max+' personne'+(max>1?'s':'')+' arrivée'+(target>1?'s':'')),true);
     renderJourJ();
     renderJourJListing();
+    renderJourJLivePlan();
   }catch(e){show(e.message||'Mise à jour impossible.');window.alert(e.message||'Mise à jour impossible.');}
 }
 function renderJourJ(){
@@ -1245,6 +1268,52 @@ function renderJourJ(){
     const all=document.createElement('button');all.type='button';all.className='jourjCheckBtn'+(complete?' undo':'');all.textContent=complete?'↩ REMETTRE À 0':'✓ TOUT LE GROUPE ARRIVÉ';all.onclick=()=>setJourJArrivals(r.id,complete?0:nb);
     d.append(n,status,t,st,arrivals);if(r.telephone)d.append(phone);d.append(controls,all);box.appendChild(d);
   });
+}
+
+
+const LIVE_TABLE_LAYOUT={
+  17:['round',10,20],18:['round',22,20],2:['round',53,20],1:['round',65,20],
+  16:['long',7,47],15:['long',13,47],14:['long',19,47],12:['long',25,47],11:['long',31,47],10:['long',37,47],9:['long',43,47],8:['long',49,47],7:['long',55,47],6:['long',61,47],5:['long',67,47],4:['long',73,47],3:['long',79,47],
+  19:['long',7,73],20:['long',13,73],21:['long',19,73],22:['long',25,73],23:['long',31,73],24:['medium',40,73],25:['small',48,73],26:['small',54,73],27:['small',60,73],28:['small',66,73]
+};
+function getLiveTableData(tableNo){
+  const groups=adminReservationsCache.filter(r=>Number(r.numero_table)===Number(tableNo));
+  const expected=groups.reduce((a,r)=>a+Math.max(0,Number(r.nombre_personnes||0)),0);
+  const arrived=groups.reduce((a,r)=>{const nb=Math.max(0,Number(r.nombre_personnes||0));return a+Math.max(0,Math.min(nb,Number(r.nombre_arrives||0)));},0);
+  const state=!expected?'free':arrived<=0?'wait':arrived>=expected?'complete':'partial';
+  return {groups,expected,arrived,state};
+}
+function renderJourJLivePlan(){
+  const plan=document.getElementById('jourJLivePlan'); if(!plan)return;
+  const expected=adminReservationsCache.reduce((a,r)=>a+Math.max(0,Number(r.nombre_personnes||0)),0);
+  const arrived=adminReservationsCache.reduce((a,r)=>{const nb=Math.max(0,Number(r.nombre_personnes||0));return a+Math.max(0,Math.min(nb,Number(r.nombre_arrives||0)));},0);
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  set('liveExpected',expected);set('liveArrived',arrived);set('liveRemaining',Math.max(0,expected-arrived));set('liveRate',expected?Math.round(arrived*100/expected)+'%':'0%');
+  plan.innerHTML='<div class="liveStage">SCÈNE</div><div class="barcentral">Bar Central</div><div class="barjt">Bar JT</div><div class="reserve">Réserve</div>';
+  Object.keys(LIVE_TABLE_LAYOUT).forEach(k=>{
+    const [shape,x,y]=LIVE_TABLE_LAYOUT[k], data=getLiveTableData(k);
+    const b=document.createElement('button');b.type='button';b.className='liveTable '+shape+' '+data.state;b.style.left=x+'%';b.style.top=y+'%';b.onclick=()=>openLiveTableDetail(Number(k));
+    b.innerHTML='<span class="liveNum">'+k+'</span><span class="liveCount">'+(data.expected?data.arrived+'/'+data.expected:'LIBRE')+'</span>';
+    plan.appendChild(b);
+  });
+}
+function parseLiveSeats(r){
+  if(Array.isArray(r.sieges))return r.sieges;
+  if(typeof r.sieges==='string'&&r.sieges.trim()){try{const p=JSON.parse(r.sieges);if(Array.isArray(p))return p;}catch(_){return r.sieges.split(',').map(v=>v.trim()).filter(Boolean);}}
+  return [];
+}
+function openLiveTableDetail(tableNo){
+  const modal=document.getElementById('tableModal'), title=document.getElementById('tableModalTitle'), body=document.getElementById('tableModalBody'); if(!modal||!title||!body)return;
+  const data=getLiveTableData(tableNo); title.textContent='Table '+tableNo+' — LIVE'; body.innerHTML='';
+  const head=document.createElement('div');head.className='jourjPeople';head.textContent=data.expected?data.arrived+' / '+data.expected+' personne(s) arrivée(s)':'Aucune réservation sur cette table';body.appendChild(head);
+  data.groups.forEach(r=>{
+    const x=getJourJState(r), seats=parseLiveSeats(r), d=document.createElement('div');d.className='liveDetailGroup';
+    const name=document.createElement('b');name.textContent=((r.prenom||'')+' '+(r.nom||'')).trim()||'CLIENT';
+    const place=document.createElement('div');place.className='admindetail';place.textContent=seats.length?'Chaises : '+seats.join(' · '):'Chaises : à confirmer';
+    const st=document.createElement('div');st.className='liveDetailState';st.textContent=(x.state==='complete'?'✓ GROUPE COMPLET':x.state==='partial'?'ARRIVÉE PARTIELLE':'À VENIR')+' — '+x.na+'/'+x.nb;
+    d.append(name,place,st);body.appendChild(d);
+  });
+  modal.classList.add('show');
 }
 
 let jourJListingFilter='all';
