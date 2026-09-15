@@ -631,7 +631,9 @@ async function findMyReservation(){
       headers:headers(),
       body:JSON.stringify({p_telephone:tel,p_code:code})
     });
-    if(!res.ok) throw new Error('Recherche impossible ('+res.status+')');
+    if(!res.ok){
+  if(res.status === 400) throw new Error('Trop de tentatives. Pour votre sécurité, veuillez réessayer dans 30 minutes.');
+  throw new Error('Recherche impossible ('+res.status+')');
     const data=await res.json();
     if(!data.length) return alert('Aucune réservation active trouvée avec ces informations.');
     myReservation=data[0];
