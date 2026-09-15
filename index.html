@@ -1517,6 +1517,7 @@ async function loadAdminReservations(){
     updateEnhancedDashboard();
     renderJourJ();
     renderJourJListing();
+    renderJourJLivePlan();
   }catch(e){
     adminReservationsCache=[];
     const count=document.getElementById('adminSearchCount');
